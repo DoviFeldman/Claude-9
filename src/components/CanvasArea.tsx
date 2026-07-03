@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { editor } from '../editor/Editor';
 import { useEditor } from '../editor/useEditor';
 import { importFiles } from '../editor/importers';
@@ -65,14 +66,32 @@ export function CanvasArea() {
       const old = editor.zoom;
       const next = Math.min(4, Math.max(0.05, old * Math.exp(-dy * 0.0007)));
       if (next === old) return;
-      const rect = el.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const factor = next / old;
-      const sl = el.scrollLeft, st = el.scrollTop;
-      editor.setZoom(next);
-      el.scrollLeft = (sl + cx) * factor - cx;
-      el.scrollTop = (st + cy) * factor - cy;
+
+      // anchor on the page-frame nearest the cursor (single column -> by Y);
+      // measuring the same element before and after the zoom render makes the
+      // correction exact despite fixed-size chrome (padding, page headers)
+      const frames = Array.from(el.querySelectorAll<HTMLElement>('.page-frame'));
+      const anchor = frames.length
+        ? frames.reduce((best, f) => {
+            const r = f.getBoundingClientRect();
+            const d = e.clientY < r.top ? r.top - e.clientY : e.clientY > r.bottom ? e.clientY - r.bottom : 0;
+            return d < best.d ? { f, d } : best;
+          }, { f: frames[0], d: Infinity }).f
+        : null;
+      if (!anchor) { editor.setZoom(next); return; }
+
+      // cursor position in unzoomed document coordinates, relative to that page
+      const r0 = anchor.getBoundingClientRect();
+      const docX = (e.clientX - r0.left) / old;
+      const docY = (e.clientY - r0.top) / old;
+
+      // apply zoom with a synchronous React render so layout is final
+      flushSync(() => editor.setZoom(next));
+
+      // re-measure and scroll so that doc point is back under the cursor
+      const r1 = anchor.getBoundingClientRect();
+      el.scrollLeft += r1.left + docX * next - e.clientX;
+      el.scrollTop += r1.top + docY * next - e.clientY;
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
