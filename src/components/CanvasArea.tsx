@@ -56,8 +56,14 @@ export function CanvasArea() {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
+      // zoom proportionally to the scroll delta so trackpads (many small
+      // events per gesture) feel as controlled as discrete mouse notches
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16;
+      else if (e.deltaMode === 2) dy *= 100;
+      dy = Math.max(-120, Math.min(120, dy));
       const old = editor.zoom;
-      const next = Math.min(4, Math.max(0.05, old * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      const next = Math.min(4, Math.max(0.05, old * Math.exp(-dy * 0.0007)));
       if (next === old) return;
       const rect = el.getBoundingClientRect();
       const cx = e.clientX - rect.left;
