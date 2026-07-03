@@ -36,7 +36,7 @@ export function Sidebar() {
       {tab && (
         <div className="panel">
           <button className="panel-close icon-btn" onClick={() => editor.setPanelTab(null)} title="Close panel">
-            <Icon name="close" size={16} />
+            <Icon name="chevronLeft" size={16} />
           </button>
           {tab === 'design' && <DesignPanel />}
           {tab === 'elements' && <ElementsPanel />}

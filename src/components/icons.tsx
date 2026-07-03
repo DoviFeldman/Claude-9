@@ -54,6 +54,7 @@ const paths: Record<string, JSX.Element> = {
   up: <path d="M12 19V5m0 0l-6 6m6-6l6 6" />,
   down: <path d="M12 5v14m0 0l-6-6m6 6l6-6" />,
   chevronDown: <path d="M6 9.5l6 6 6-6" />,
+  chevronLeft: <path d="M14 6.5l-5.5 5.5L14 17.5" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   search: (
     <>

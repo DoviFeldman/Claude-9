@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as fabric from 'fabric';
 import { ALL_FONTS } from '../constants';
 import { anyToHex } from '../editor/colors';
@@ -467,9 +467,30 @@ export function ContextToolbar() {
   const canvas = editor.activeCanvas;
   const pageBg = anyToHex(canvas?.backgroundColor) ?? '#ffffff';
 
+  // Purely visual: when the toolbar's contents switch (selection kind
+  // changes), briefly keep showing the old controls while the pill
+  // collapses into a dark flash, then reopen with the new controls.
+  const [anim, setAnim] = useState<'idle' | 'closing' | 'opening'>('idle');
+  const [frozen, setFrozen] = useState<{ kind: SelKind; obj?: fabric.FabricObject } | null>(null);
+  const prevKind = useRef(kind);
+  const live = useRef<{ kind: SelKind; obj?: fabric.FabricObject }>({ kind, obj });
+  useEffect(() => {
+    if (kind === prevKind.current) return;
+    prevKind.current = kind;
+    setFrozen(live.current);
+    setAnim('closing');
+    const t1 = setTimeout(() => { setFrozen(null); setAnim('opening'); }, 130);
+    const t2 = setTimeout(() => setAnim('idle'), 330);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [kind]);
+  useEffect(() => { live.current = { kind, obj }; });
+
+  const showKind = frozen ? frozen.kind : kind;
+  const showObj = frozen ? frozen.obj : obj;
+
   return (
-    <div className="context-toolbar">
-      {kind === 'none' && (
+    <div className={`context-toolbar${anim === 'closing' ? ' ctx-closing' : anim === 'opening' ? ' ctx-opening' : ''}`}>
+      {showKind === 'none' && (
         <>
           <Popover title="Page background color" button={
             <button className="tb-btn"><Chip color={pageBg} title="Page color" /><span>Page color</span></button>
@@ -481,13 +502,13 @@ export function ContextToolbar() {
           </span>
         </>
       )}
-      {kind === 'text' && obj && <TextControls obj={obj} />}
-      {(kind === 'shape' || kind === 'line' || kind === 'drawing') && obj && <ShapeControls obj={obj} kind={kind} />}
-      {kind === 'image' && <ImageControls />}
-      {kind !== 'none' && obj && (
+      {showKind === 'text' && showObj && <TextControls obj={showObj} />}
+      {(showKind === 'shape' || showKind === 'line' || showKind === 'drawing') && showObj && <ShapeControls obj={showObj} kind={showKind} />}
+      {showKind === 'image' && <ImageControls />}
+      {showKind !== 'none' && showObj && (
         <>
           <div className="tb-spacer" />
-          <CommonControls obj={obj} kind={kind} />
+          <CommonControls obj={showObj} kind={showKind} />
         </>
       )}
     </div>
