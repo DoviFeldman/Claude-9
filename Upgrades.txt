@@ -1,0 +1,16 @@
+1 upgrade it to have a mobile friendly option along with a very optional PWA(no popup)
+2 add the ability to upload your pwn fonts from google fonts very easily.
+3 add the ability to export your whole editing file so that you could save it exactly and also share it for others to edit and stuff, 
+maybe we could just make it that it downloads all the images your useing and records the canvas size and wher each images is on the canvas 
+and how big each is and if any of them were cropped or changed color and stuff.
+
+feel free to add more here. 
+
+
+
+
+
+
+
+
+
