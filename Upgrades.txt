@@ -4,6 +4,10 @@
 maybe we could just make it that it downloads all the images your useing and records the canvas size and wher each images is on the canvas 
 and how big each is and if any of them were cropped or changed color and stuff.
 
+4 when i try moving something from one canvas to another it just dissapears behind the canvas forever, canva does something similar.
+
+5 there some snapping that i like but we could add even more a ton of snapping
+
 feel free to add more here. 
 
 
