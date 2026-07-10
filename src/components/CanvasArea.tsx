@@ -3,8 +3,41 @@ import { flushSync } from 'react-dom';
 import { editor } from '../editor/Editor';
 import { useEditor } from '../editor/useEditor';
 import { importFiles } from '../editor/importers';
+import { exportProject, openProjectDialog } from '../editor/project';
 import { Icon } from './icons';
 import { CropOverlay } from './CropOverlay';
+
+/** Zoom so the document point under (clientX, clientY) stays put on screen. */
+function zoomAtPoint(el: HTMLDivElement, next: number, clientX: number, clientY: number): void {
+  const old = editor.zoom;
+  if (next === old) return;
+
+  // anchor on the page-frame nearest the cursor (single column -> by Y);
+  // measuring the same element before and after the zoom render makes the
+  // correction exact despite fixed-size chrome (padding, page headers)
+  const frames = Array.from(el.querySelectorAll<HTMLElement>('.page-frame'));
+  const anchor = frames.length
+    ? frames.reduce((best, f) => {
+        const r = f.getBoundingClientRect();
+        const d = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
+        return d < best.d ? { f, d } : best;
+      }, { f: frames[0], d: Infinity }).f
+    : null;
+  if (!anchor) { editor.setZoom(next); return; }
+
+  // cursor position in unzoomed document coordinates, relative to that page
+  const r0 = anchor.getBoundingClientRect();
+  const docX = (clientX - r0.left) / old;
+  const docY = (clientY - r0.top) / old;
+
+  // apply zoom with a synchronous React render so layout is final
+  flushSync(() => editor.setZoom(next));
+
+  // re-measure and scroll so that doc point is back under the cursor
+  const r1 = anchor.getBoundingClientRect();
+  el.scrollLeft += r1.left + docX * next - clientX;
+  el.scrollTop += r1.top + docY * next - clientY;
+}
 
 function PageCanvas({ pageId }: { pageId: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -63,38 +96,55 @@ export function CanvasArea() {
       if (e.deltaMode === 1) dy *= 16;
       else if (e.deltaMode === 2) dy *= 100;
       dy = Math.max(-120, Math.min(120, dy));
-      const old = editor.zoom;
-      const next = Math.min(4, Math.max(0.05, old * Math.exp(-dy * 0.0007)));
-      if (next === old) return;
-
-      // anchor on the page-frame nearest the cursor (single column -> by Y);
-      // measuring the same element before and after the zoom render makes the
-      // correction exact despite fixed-size chrome (padding, page headers)
-      const frames = Array.from(el.querySelectorAll<HTMLElement>('.page-frame'));
-      const anchor = frames.length
-        ? frames.reduce((best, f) => {
-            const r = f.getBoundingClientRect();
-            const d = e.clientY < r.top ? r.top - e.clientY : e.clientY > r.bottom ? e.clientY - r.bottom : 0;
-            return d < best.d ? { f, d } : best;
-          }, { f: frames[0], d: Infinity }).f
-        : null;
-      if (!anchor) { editor.setZoom(next); return; }
-
-      // cursor position in unzoomed document coordinates, relative to that page
-      const r0 = anchor.getBoundingClientRect();
-      const docX = (e.clientX - r0.left) / old;
-      const docY = (e.clientY - r0.top) / old;
-
-      // apply zoom with a synchronous React render so layout is final
-      flushSync(() => editor.setZoom(next));
-
-      // re-measure and scroll so that doc point is back under the cursor
-      const r1 = anchor.getBoundingClientRect();
-      el.scrollLeft += r1.left + docX * next - e.clientX;
-      el.scrollTop += r1.top + docY * next - e.clientY;
+      const next = Math.min(4, Math.max(0.05, editor.zoom * Math.exp(-dy * 0.0007)));
+      zoomAtPoint(el, next, e.clientX, e.clientY);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // two-finger pinch zoom + pan (touch devices). Captured on the container so
+  // fabric never sees the second finger and starts a drag with it.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let start: { d: number; z: number } | null = null;
+    let lastMid = { x: 0, y: 0 };
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const mid = (t: TouchList) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      editor.activeCanvas?.discardActiveObject();
+      editor.activeCanvas?.requestRenderAll();
+      start = { d: dist(e.touches), z: editor.zoom };
+      lastMid = mid(e.touches);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start || e.touches.length < 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const m = mid(e.touches);
+      el.scrollLeft -= m.x - lastMid.x;
+      el.scrollTop -= m.y - lastMid.y;
+      lastMid = m;
+      const next = Math.min(4, Math.max(0.05, start.z * (dist(e.touches) / start.d)));
+      zoomAtPoint(el, next, m.x, m.y);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) start = null;
+    };
+    el.addEventListener('touchstart', onStart, { capture: true, passive: false });
+    el.addEventListener('touchmove', onMove, { capture: true, passive: false });
+    el.addEventListener('touchend', onEnd, true);
+    el.addEventListener('touchcancel', onEnd, true);
+    return () => {
+      el.removeEventListener('touchstart', onStart, true);
+      el.removeEventListener('touchmove', onMove, true);
+      el.removeEventListener('touchend', onEnd, true);
+      el.removeEventListener('touchcancel', onEnd, true);
+    };
   }, []);
 
   // pan with space+drag or middle mouse
@@ -152,6 +202,8 @@ export function CanvasArea() {
       else if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); void editor.duplicateSelected(); }
       else if (mod && e.key.toLowerCase() === 'g') { e.preventDefault(); editor.groupSelection(); }
       else if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); editor.selectAll(); }
+      else if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); void exportProject(); }
+      else if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); openProjectDialog(); }
       else if (mod && e.key.toLowerCase() === 'c') { void editor.copySelection(); }
       else if (mod && e.key.toLowerCase() === 'x') { void editor.copySelection().then(() => editor.deleteSelected()); }
       else if (mod && e.key.toLowerCase() === 'v') { void editor.pasteClipboard(); }

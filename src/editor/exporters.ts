@@ -18,11 +18,11 @@ export interface ExportOptions {
   transparent: boolean; // PNG only
 }
 
-function safeName(): string {
+export function safeName(): string {
   return (editor.docName || 'design').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'design';
 }
 
-function saveBlob(blob: Blob, filename: string): void {
+export function saveBlob(blob: Blob, filename: string): void {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
@@ -32,7 +32,7 @@ function saveBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }
 
-function dataURLToBlob(url: string): Blob {
+export function dataURLToBlob(url: string): Blob {
   const [head, body] = url.split(',');
   const mime = head.match(/data:([^;]+)/)?.[1] ?? 'application/octet-stream';
   const bin = atob(body);

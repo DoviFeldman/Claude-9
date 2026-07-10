@@ -12,8 +12,16 @@ Open the page and start designing. Everything you make stays in **your browser**
 - Templates for popular formats: YouTube thumbnail, Instagram post/story, Facebook, X/Twitter,
   LinkedIn banner, Pinterest, presentations, website mockups, A4 / US Letter, business card, poster, flyer, logo
 - Multiple **pages stacked vertically** (add, duplicate, reorder, delete)
+- **Drag elements between pages** — drop a selection onto another page and it moves there;
+  elements dropped into empty space are pulled back so nothing is ever lost off-canvas
 - Smart zoom (Ctrl+scroll, slider, fit-to-screen) and panning (Space+drag or middle mouse)
-- Snap guides to page center and edges while dragging
+- **Extensive snapping**: page edges & center plus the edges and centers of every other
+  element on the page, with live guide lines (hold Ctrl while dragging to disable);
+  rotation snaps gently at 15° steps
+- **Mobile friendly** — on phones the tool rail docks to the bottom, panels open as bottom
+  sheets, and the canvas supports pinch-to-zoom and touch dragging
+- **Optional PWA**: installable from the browser menu (no install prompts, ever) with quiet
+  offline support
 
 **Elements**
 - Shapes: squares, rectangles, circles, ovals, triangles — with **corner rounding**,
@@ -24,6 +32,9 @@ Open the page and start designing. Everything you make stays in **your browser**
 - Text: heading/subheading/body presets, 40+ popular fonts (Google Fonts + system),
   bold/italic/underline/strikethrough, alignment, **letter spacing, line spacing,
   shadow, text background**, color and transparency
+- **Add any Google Font by name** (from the font menu or the Text panel) and
+  **upload your own font files** (.ttf/.otf/.woff/.woff2) — custom fonts persist in your
+  browser and travel inside saved project files
 
 **Uploads & editing**
 - Drag & drop (or paste, or upload) **images, SVG, PDF, PPTX and HTML** files
@@ -38,12 +49,22 @@ Open the page and start designing. Everything you make stays in **your browser**
 
 **Color**
 - Full color picker (saturation/value area + hue + hex input + native eyedropper where supported)
+- **Gradients everywhere**: linear & radial gradient fills for shapes and text, gradient page
+  backgrounds, a preset gallery, any number of color stops with per-stop position and opacity —
+  including **transparency gradients** (e.g. orange fading into soft clear)
 - **Suggested palettes extracted from your uploaded images**, document colors, and default swatches
 
 **Organize**
 - Group / ungroup, layer controls (forward, backward, to front, to back)
 - Align to page (left/center/right/top/middle/bottom), lock, duplicate
 - Undo/redo, autosave, full keyboard shortcuts
+
+**Projects — save, reopen, share**
+- **Save the whole design as a `.opencanvas` project file** (Save button or Ctrl+S): a zip
+  holding the canvas size, every page, each element's exact position/size/rotation, applied
+  crops and color edits, all images used, and your custom fonts
+- **Open** it later (Open button, Ctrl+O, or drop the file onto the canvas) to continue exactly
+  where you left off — or send the file to someone else so they can edit the design themselves
 
 **Download** (top-right button, defaults to JPG, remembers your choice)
 - **JPG, PNG (optionally transparent), PDF, SVG, HTML** at 1×/2×/3×
@@ -105,6 +126,7 @@ No server-side code runs anywhere — user data never leaves the visitor's brows
 
 | Shortcut | Action |
 | --- | --- |
+| `Ctrl/Cmd + S` / `Ctrl/Cmd + O` | Save / open a project file |
 | `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y` | Undo / redo |
 | `Ctrl/Cmd + C` / `X` / `V` | Copy / cut / paste elements (paste also imports images from your clipboard) |
 | `Ctrl/Cmd + D` | Duplicate |
@@ -112,7 +134,8 @@ No server-side code runs anywhere — user data never leaves the visitor's brows
 | `Ctrl/Cmd + A` | Select all on the page |
 | `Delete` / `Backspace` | Delete selection |
 | Arrow keys (`+ Shift`) | Nudge by 1px (10px) |
-| `Ctrl/Cmd + scroll` | Zoom at cursor |
+| `Ctrl/Cmd + scroll` | Zoom at cursor (pinch to zoom on touch screens) |
+| `Ctrl` while dragging an element | Temporarily disable snapping |
 | `Space + drag` / middle mouse | Pan |
 | `Esc` | Deselect / exit draw or crop mode |
 | Double-click text | Edit text |

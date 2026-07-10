@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as fabric from 'fabric';
-import { ALL_FONTS } from '../constants';
 import { anyToHex } from '../editor/colors';
 import { editor, ensureFont, isTextObject } from '../editor/Editor';
+import { addGoogleFont, allFonts } from '../editor/fonts';
+import { fillToCss } from '../editor/gradients';
+import { toast } from '../editor/toast';
 import { useEditor } from '../editor/useEditor';
 import { ColorPicker } from './ColorPicker';
+import { FillPicker } from './FillPicker';
 import { Icon } from './icons';
 import { Popover } from './Popover';
 
@@ -28,11 +31,11 @@ function Chip({ color, title }: { color: string; title: string }) {
 
 function FontSelect({ obj }: { obj: fabric.FabricObject }) {
   const [query, setQuery] = useState('');
+  const [adding, setAdding] = useState(false);
   const current = ((obj as any).fontFamily as string) ?? 'Inter';
-  const fonts = useMemo(
-    () => ALL_FONTS.filter((f) => f.toLowerCase().includes(query.toLowerCase())),
-    [query],
-  );
+  const q = query.trim();
+  const fonts = allFonts().filter((f) => f.toLowerCase().includes(q.toLowerCase()));
+  const exactMatch = fonts.some((f) => f.toLowerCase() === q.toLowerCase());
   return (
     <Popover
       panelClassName="font-panel"
@@ -71,6 +74,29 @@ function FontSelect({ obj }: { obj: fabric.FabricObject }) {
               </button>
             ))}
           </div>
+          {q && !exactMatch && (
+            <button
+              className="font-add"
+              disabled={adding}
+              title="Fetch this font from Google Fonts and apply it"
+              onClick={async () => {
+                setAdding(true);
+                const fam = await addGoogleFont(q);
+                setAdding(false);
+                if (fam) {
+                  await ensureFont(fam);
+                  editor.setProps({ fontFamily: fam });
+                  editor.notify();
+                  close();
+                } else {
+                  toast(`Couldn't find “${q}” on Google Fonts — check the name on fonts.google.com.`, 'error');
+                }
+              }}
+            >
+              <Icon name="plus" size={15} />
+              {adding ? 'Adding…' : `Add “${q}” from Google Fonts`}
+            </button>
+          )}
         </div>
       )}
     </Popover>
@@ -110,8 +136,12 @@ function TextControls({ obj }: { obj: fabric.FabricObject }) {
     <>
       <FontSelect obj={obj} />
       <FontSizeControl obj={obj} />
-      <Popover title="Text color" button={<button className="tb-btn"><Chip color={anyToHex(o.fill) ?? '#000000'} title="Text color" /></button>}>
-        <ColorPicker value={anyToHex(o.fill) ?? '#000000'} onChange={(hex, final) => editor.setColor(hex, final)} />
+      <Popover title="Text color & gradient" button={<button className="tb-btn"><Chip color={fillToCss(o.fill)} title="Text color" /></button>}>
+        <FillPicker
+          fill={o.fill}
+          onSolid={(hex, final) => editor.setColor(hex, final)}
+          onGradient={(spec, final) => editor.setGradient(spec, final)}
+        />
       </Popover>
       <button
         className={`tb-btn glyph${o.fontWeight === 700 || o.fontWeight === 'bold' ? ' on' : ''}`}
@@ -228,15 +258,20 @@ function TextControls({ obj }: { obj: fabric.FabricObject }) {
 function ShapeControls({ obj, kind }: { obj: fabric.FabricObject; kind: SelKind }) {
   const o = obj as any;
   const isLineLike = kind === 'line' || kind === 'drawing';
-  const color = isLineLike ? anyToHex(o.stroke) ?? '#1a1a1a' : anyToHex(o.fill) ?? '#8b3dff';
+  const fillValue = isLineLike ? o.stroke : o.fill;
+  const color = fillValue ? fillToCss(fillValue) : (isLineLike ? '#1a1a1a' : '#8b3dff');
   const canRound = kind === 'shape' && (obj instanceof fabric.Rect || o.shapeKind === 'triangle');
   const maxRadius = Math.round(Math.min(obj.width ?? 100, obj.height ?? 100) / 2);
   const radius = Math.round(o.shapeKind === 'triangle' ? (o.cornerRadius ?? 0) : (o.rx ?? 0));
 
   return (
     <>
-      <Popover title="Color" button={<button className="tb-btn"><Chip color={color} title="Color" /></button>}>
-        <ColorPicker value={color} onChange={(hex, final) => editor.setColor(hex, final)} />
+      <Popover title="Color & gradient" button={<button className="tb-btn"><Chip color={color} title="Color" /></button>}>
+        <FillPicker
+          fill={fillValue}
+          onSolid={(hex, final) => editor.setColor(hex, final)}
+          onGradient={(spec, final) => editor.setGradient(spec, final)}
+        />
       </Popover>
       {isLineLike && (
         <Popover title="Line thickness" button={<button className="tb-btn"><Icon name="minus" size={18} /><span>{Math.round(o.strokeWidth ?? 1)}px</span></button>}>
@@ -465,7 +500,7 @@ export function ContextToolbar() {
   const objs = editor.getActiveObjects();
   const kind = selectionKind(obj, objs.length);
   const canvas = editor.activeCanvas;
-  const pageBg = anyToHex(canvas?.backgroundColor) ?? '#ffffff';
+  const pageBg = fillToCss(canvas?.backgroundColor);
 
   // Purely visual: when the toolbar's contents switch (selection kind
   // changes), briefly keep showing the old controls while the pill
@@ -492,10 +527,14 @@ export function ContextToolbar() {
     <div className={`context-toolbar${anim === 'closing' ? ' ctx-closing' : anim === 'opening' ? ' ctx-opening' : ''}`}>
       {showKind === 'none' && (
         <>
-          <Popover title="Page background color" button={
+          <Popover title="Page background — color or gradient" button={
             <button className="tb-btn"><Chip color={pageBg} title="Page color" /><span>Page color</span></button>
           }>
-            <ColorPicker value={pageBg} onChange={(hex, final) => editor.setPageBackground(hex, final)} />
+            <FillPicker
+              fill={canvas?.backgroundColor}
+              onSolid={(hex, final) => editor.setPageBackground(hex, final)}
+              onGradient={(spec, final) => editor.setPageGradient(spec, final)}
+            />
           </Popover>
           <span className="toolbar-hint">
             Select something on a page to edit it — or add shapes, text and uploads from the left panel.

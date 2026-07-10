@@ -84,6 +84,11 @@ export async function insertUpload(rec: UploadRecord): Promise<void> {
 /** Entry point for drag-drop / file input / paste. Saves to uploads then inserts. */
 export async function importFiles(files: File[] | FileList): Promise<void> {
   for (const file of Array.from(files)) {
+    if (file.name.toLowerCase().endsWith('.opencanvas')) {
+      const { confirmAndImportProject } = await import('./project');
+      await confirmAndImportProject(file);
+      continue;
+    }
     const kind = classifyFile(file);
     if (!kind) {
       toast(`"${file.name}" isn't a supported file type.`, 'error');

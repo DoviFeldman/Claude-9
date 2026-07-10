@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { editor } from '../editor/Editor';
+import { exportProject, openProjectDialog } from '../editor/project';
 import { useEditor } from '../editor/useEditor';
 import { fromPx, toPx, type Unit } from '../constants';
 import { Icon } from './icons';
@@ -77,13 +78,27 @@ export function TopBar() {
         <div className="topbar-sep" />
         <Popover
           title="Resize the canvas"
-          button={<button className="tb-btn"><Icon name="fit" size={17} /><span>Resize</span></button>}
+          button={<button className="tb-btn"><Icon name="fit" size={17} /><span className="tb-label">Resize</span></button>}
         >
           {(close) => <ResizePanel close={close} />}
         </Popover>
+        <button
+          className="tb-btn"
+          onClick={() => void exportProject()}
+          title="Save as a project file (.opencanvas) you can reopen or share for editing (Ctrl+S)"
+        >
+          <Icon name="save" size={17} /><span className="tb-label">Save</span>
+        </button>
+        <button
+          className="tb-btn"
+          onClick={() => openProjectDialog()}
+          title="Open a saved .opencanvas project (Ctrl+O)"
+        >
+          <Icon name="folder" size={17} /><span className="tb-label">Open</span>
+        </button>
         {!confirmNew ? (
           <button className="tb-btn" onClick={() => setConfirmNew(true)} title="Start a new design">
-            <Icon name="file" size={17} /><span>New</span>
+            <Icon name="file" size={17} /><span className="tb-label">New</span>
           </button>
         ) : (
           <span className="confirm-new">

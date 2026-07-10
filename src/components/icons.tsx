@@ -103,6 +103,8 @@ const paths: Record<string, JSX.Element> = {
     </>
   ),
   file: <path d="M13 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V9l-6-6zm0 0v6h6" />,
+  save: <path d="M5 3h10.5L21 8.5V19a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM8 3v5.5h7V3M7.5 21v-7h9v7" />,
+  folder: <path d="M3 7.5A2.5 2.5 0 015.5 5h3.6L11.5 7.5H18.5A2.5 2.5 0 0121 10v7a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 17V7.5z" />,
   check: <path d="M5 13l4.5 4.5L19 7" />,
 };
 

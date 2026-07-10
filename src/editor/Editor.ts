@@ -3,10 +3,13 @@
 // via useEditor() and re-render when `version` bumps.
 
 import * as fabric from 'fabric';
-import { GOOGLE_FONTS } from '../constants';
-import { anyToHex, hexWithAlpha } from './colors';
+import { hexWithAlpha } from './colors';
 import { saveDoc, type SavedDoc } from './db';
+import { ensureFont } from './fonts';
+import { gradientToSpec, isGradient, specToGradient, type GradientSpec } from './gradients';
 import { roundedTrianglePath } from './shapes';
+
+export { ensureFont } from './fonts';
 
 export const EXTRA_PROPS = [
   'shapeKind', 'cornerRadius', 'palette', 'locked', 'triW', 'triH',
@@ -36,6 +39,9 @@ const SELECTION_STYLE = {
 
 export function decorate(obj: fabric.FabricObject): void {
   obj.set(SELECTION_STYLE);
+  // rotation snapping: magnetic near multiples of 15°, free otherwise
+  obj.snapAngle = 15;
+  obj.snapThreshold = 4;
   if (obj instanceof fabric.Path) obj.perPixelTargetFind = true;
 }
 
@@ -49,19 +55,6 @@ export function sceneBBox(obj: fabric.FabricObject): { left: number; top: number
 
 export const isTextObject = (o: fabric.FabricObject): o is fabric.IText =>
   o instanceof fabric.IText || o instanceof fabric.Textbox || (o as any).type === 'text';
-
-const loadedFonts = new Set<string>();
-export async function ensureFont(family: string): Promise<void> {
-  if (loadedFonts.has(family) || !GOOGLE_FONTS.includes(family)) return;
-  try {
-    await Promise.all([
-      document.fonts.load(`16px "${family}"`),
-      document.fonts.load(`bold 16px "${family}"`),
-      document.fonts.load(`italic 16px "${family}"`),
-    ]);
-  } catch { /* font may not exist in a weight — fine */ }
-  loadedFonts.add(family);
-}
 
 export interface CropState {
   pageId: string;
@@ -101,7 +94,8 @@ class Editor {
   private snapshots = new Map<string, string>();
   private squelch = 0;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
-  private snapGuides = new Map<string, { v: number | null; h: number | null }>();
+  private snapGuides = new Map<string, { v: number[]; h: number[] }>();
+  private snapCache: { target: fabric.FabricObject; xs: number[]; ys: number[] } | null = null;
 
   clipboard: fabric.FabricObject | null = null;
   containerSize = { w: 1200, h: 800 };
@@ -132,6 +126,8 @@ class Editor {
       selectionLineWidth: 1.5,
       stopContextMenu: true,
       fireRightClick: false,
+      // touch: dragging an object moves it, dragging empty canvas scrolls the page
+      allowTouchScrolling: true,
     });
     canvas.setDimensions({ width: this.docW * this.zoom, height: this.docH * this.zoom });
     canvas.setZoom(this.zoom);
@@ -194,9 +190,16 @@ class Editor {
       commitSoon();
     });
     canvas.on('object:removed', commitSoon);
-    canvas.on('object:modified', () => {
+    canvas.on('object:modified', (opt) => {
       this.snapGuides.delete(pageId);
-      commitSoon();
+      this.snapCache = null;
+      // Defer one tick: fabric is still finishing its own mouse-up bookkeeping
+      // for this object, and the rescue may move it to another canvas.
+      // Committing afterwards keeps the whole drop a single undo entry.
+      const target = opt.target;
+      setTimeout(() => {
+        if (!target || !this.rescueDroppedObject(pageId, canvas, target)) this.commit(pageId);
+      }, 0);
     });
     canvas.on('selection:created', () => this.onSelection(pageId));
     canvas.on('selection:updated', () => this.onSelection(pageId));
@@ -205,8 +208,10 @@ class Editor {
     canvas.on('mouse:down', () => {
       this.setActivePage(pageId);
     });
-    canvas.on('object:moving', (opt) => this.applySnapping(pageId, canvas, opt.target));
+    canvas.on('object:moving', (opt) =>
+      this.applySnapping(pageId, canvas, opt.target, !!(opt.e as MouseEvent | undefined)?.ctrlKey));
     canvas.on('mouse:up', () => {
+      this.snapCache = null;
       if (this.snapGuides.delete(pageId)) canvas.requestRenderAll();
     });
     canvas.on('after:render', ({ ctx }) => this.drawGuides(pageId, canvas, ctx));
@@ -246,37 +251,66 @@ class Editor {
   }
 
   // ---------- snapping ----------
-  private applySnapping(pageId: string, canvas: fabric.Canvas, target: fabric.FabricObject): void {
+  /**
+   * Snap the moving selection to the page (edges, center) and to every other
+   * object on the page (edges and centers, both axes). The candidate lines are
+   * cached for the duration of a drag. Hold Ctrl to move freely.
+   */
+  private applySnapping(pageId: string, canvas: fabric.Canvas, target: fabric.FabricObject, bypass = false): void {
     if (!target) return;
+    if (bypass) {
+      if (this.snapGuides.delete(pageId)) canvas.requestRenderAll();
+      return;
+    }
+    if (!this.snapCache || this.snapCache.target !== target) {
+      const xs = [0, this.docW / 2, this.docW];
+      const ys = [0, this.docH / 2, this.docH];
+      const skip = new Set<fabric.FabricObject>(canvas.getActiveObjects());
+      skip.add(target);
+      for (const o of canvas.getObjects()) {
+        if (skip.has(o) || o.visible === false) continue;
+        const b = sceneBBox(o);
+        xs.push(b.left, b.left + b.width / 2, b.left + b.width);
+        ys.push(b.top, b.top + b.height / 2, b.top + b.height);
+      }
+      this.snapCache = { target, xs, ys };
+    }
+    const { xs, ys } = this.snapCache;
     const tol = 6 / this.zoom;
     const box = sceneBBox(target);
-    const cx = box.left + box.width / 2;
-    const cy = box.top + box.height / 2;
-    let v: number | null = null;
-    let h: number | null = null;
-    let dx = 0, dy = 0;
-
-    const vTargets = [
-      { at: this.docW / 2, ref: cx },
-      { at: 0, ref: box.left },
-      { at: this.docW, ref: box.left + box.width },
-    ];
-    for (const t of vTargets) {
-      if (Math.abs(t.ref - t.at) < tol) { dx = t.at - t.ref; v = t.at; break; }
+    const refX = [box.left, box.left + box.width / 2, box.left + box.width];
+    const refY = [box.top, box.top + box.height / 2, box.top + box.height];
+    let dx = 0, dy = 0, bestX = Infinity, bestY = Infinity;
+    for (const at of xs) {
+      for (const ref of refX) {
+        const d = Math.abs(at - ref);
+        if (d < tol && d < bestX) { bestX = d; dx = at - ref; }
+      }
     }
-    const hTargets = [
-      { at: this.docH / 2, ref: cy },
-      { at: 0, ref: box.top },
-      { at: this.docH, ref: box.top + box.height },
-    ];
-    for (const t of hTargets) {
-      if (Math.abs(t.ref - t.at) < tol) { dy = t.at - t.ref; h = t.at; break; }
+    for (const at of ys) {
+      for (const ref of refY) {
+        const d = Math.abs(at - ref);
+        if (d < tol && d < bestY) { bestY = d; dy = at - ref; }
+      }
     }
     if (dx !== 0 || dy !== 0) {
       target.set({ left: target.left! + dx, top: target.top! + dy });
       target.setCoords();
     }
-    if (v !== null || h !== null) this.snapGuides.set(pageId, { v, h });
+    // draw every candidate line the snapped position now sits on
+    const v: number[] = [];
+    const h: number[] = [];
+    if (bestX < Infinity) {
+      for (const at of xs) {
+        if (refX.some((ref) => Math.abs(at - (ref + dx)) < 0.5) && !v.some((x) => Math.abs(x - at) < 0.5)) v.push(at);
+      }
+    }
+    if (bestY < Infinity) {
+      for (const at of ys) {
+        if (refY.some((ref) => Math.abs(at - (ref + dy)) < 0.5) && !h.some((y) => Math.abs(y - at) < 0.5)) h.push(at);
+      }
+    }
+    if (v.length || h.length) this.snapGuides.set(pageId, { v: v.slice(0, 4), h: h.slice(0, 4) });
     else this.snapGuides.delete(pageId);
   }
 
@@ -291,9 +325,97 @@ class Editor {
     ctx.strokeStyle = '#ec4899';
     ctx.lineWidth = 1 / this.zoom;
     ctx.setLineDash([6 / this.zoom, 4 / this.zoom]);
-    if (g.v !== null) { ctx.beginPath(); ctx.moveTo(g.v, 0); ctx.lineTo(g.v, this.docH); ctx.stroke(); }
-    if (g.h !== null) { ctx.beginPath(); ctx.moveTo(0, g.h); ctx.lineTo(this.docW, g.h); ctx.stroke(); }
+    for (const x of g.v) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, this.docH); ctx.stroke(); }
+    for (const y of g.h) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.docW, y); ctx.stroke(); }
     ctx.restore();
+  }
+
+  // ---------- cross-page drag ----------
+  /**
+   * Called when a drag ends with the selection fully outside the page. If it
+   * was dropped over another page, move it there (like dragging between pages
+   * in Canva); otherwise pull it back so it can never be lost off-canvas.
+   * Returns true when the object was transferred (commits handled inside).
+   */
+  private rescueDroppedObject(pageId: string, canvas: fabric.Canvas, target: fabric.FabricObject): boolean {
+    const box = sceneBBox(target);
+    const fullyOutside =
+      box.left + box.width < 0 || box.left > this.docW ||
+      box.top + box.height < 0 || box.top > this.docH;
+    if (!fullyOutside) return false;
+
+    const upper = (canvas as unknown as { upperCanvasEl?: HTMLCanvasElement }).upperCanvasEl;
+    const rect = upper?.getBoundingClientRect();
+    if (rect && rect.width > 0) {
+      const scale = rect.width / this.docW;
+      const cx = rect.left + (box.left + box.width / 2) * scale;
+      const cy = rect.top + (box.top + box.height / 2) * scale;
+      for (const p of this.pages) {
+        if (p.id === pageId) continue;
+        const other = this.canvases.get(p.id);
+        const el = (other as unknown as { upperCanvasEl?: HTMLCanvasElement } | undefined)?.upperCanvasEl;
+        if (!other || !el) continue;
+        const r = el.getBoundingClientRect();
+        if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) {
+          this.transferSelection(pageId, p.id, target);
+          return true;
+        }
+      }
+    }
+    // nothing under it — bring it back into view on its own page
+    const m = Math.max(8, Math.min(40, box.width / 2, box.height / 2));
+    let dx = 0, dy = 0;
+    if (box.left + box.width < m) dx = m - (box.left + box.width);
+    else if (box.left > this.docW - m) dx = this.docW - m - box.left;
+    if (box.top + box.height < m) dy = m - (box.top + box.height);
+    else if (box.top > this.docH - m) dy = this.docH - m - box.top;
+    if (dx !== 0 || dy !== 0) {
+      target.set({ left: (target.left ?? 0) + dx, top: (target.top ?? 0) + dy });
+      target.setCoords();
+      canvas.requestRenderAll();
+    }
+    return false;
+  }
+
+  /** Move the dragged object/selection from one page to another, keeping its
+   *  on-screen position (both pages share doc coordinates + zoom). */
+  private transferSelection(fromId: string, toId: string, target: fabric.FabricObject): void {
+    const from = this.canvases.get(fromId);
+    const to = this.canvases.get(toId);
+    const fromEl = (from as unknown as { upperCanvasEl?: HTMLCanvasElement } | undefined)?.upperCanvasEl;
+    const toEl = (to as unknown as { upperCanvasEl?: HTMLCanvasElement } | undefined)?.upperCanvasEl;
+    if (!from || !to || !fromEl || !toEl) return;
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    const scale = fromRect.width / this.docW;
+    const dx = (fromRect.left - toRect.left) / scale;
+    const dy = (fromRect.top - toRect.top) / scale;
+    const list = target instanceof fabric.ActiveSelection ? [...target.getObjects()] : [target];
+    this.squelch++;
+    try {
+      from.discardActiveObject(); // restores absolute coords on selection members
+      for (const o of list) {
+        from.remove(o);
+        o.set({ left: (o.left ?? 0) + dx, top: (o.top ?? 0) + dy });
+        o.setCoords();
+        decorate(o);
+        to.add(o);
+      }
+      if (list.length === 1) {
+        to.setActiveObject(list[0]);
+      } else if (list.length > 1) {
+        const sel = new fabric.ActiveSelection(list, { canvas: to });
+        decorate(sel);
+        to.setActiveObject(sel);
+      }
+      from.requestRenderAll();
+      to.requestRenderAll();
+    } finally {
+      this.squelch--;
+    }
+    this.commit(fromId);
+    this.commit(toId);
+    this.setActivePage(toId);
   }
 
   // ---------- serialization / history ----------
@@ -440,6 +562,13 @@ class Editor {
   setDocSize(w: number, h: number): void {
     this.docW = Math.max(16, Math.min(8000, Math.round(w)));
     this.docH = Math.max(16, Math.min(8000, Math.round(h)));
+    // background gradients are sized in pixels — rebuild them for the new size
+    for (const c of this.canvases.values()) {
+      if (isGradient(c.backgroundColor)) {
+        const spec = gradientToSpec(c.backgroundColor);
+        if (spec) c.backgroundColor = specToGradient(spec, { units: 'pixels', w: this.docW, h: this.docH });
+      }
+    }
     this.applyZoomToCanvases();
     this.zoomMode = 'fit';
     this.zoomToFit();
@@ -882,6 +1011,50 @@ class Editor {
       o.dirty = true;
     };
     objs.forEach(applyDeep);
+    canvas.requestRenderAll();
+    if (commit) this.commitActive();
+    else this.notify();
+  }
+
+  /** Apply a gradient to the selection: fills shapes/text, strokes lines &
+   *  drawn paths, recurses into groups. Per-stop opacity → transparency fades. */
+  setGradient(spec: GradientSpec, commit = true): void {
+    const canvas = this.activeCanvas;
+    if (!canvas) return;
+    const objs = canvas.getActiveObjects();
+    if (!objs.length) return;
+    const applyDeep = (o: fabric.FabricObject): void => {
+      if (o instanceof fabric.Group && !(o instanceof fabric.ActiveSelection)) {
+        o.getObjects().forEach(applyDeep);
+        o.dirty = true;
+        return;
+      }
+      if (o instanceof fabric.FabricImage) return;
+      const strokeTarget = o instanceof fabric.Line || (o as any).shapeKind === 'line'
+        || (o instanceof fabric.Path && !(o as any).shapeKind);
+      if (strokeTarget) {
+        // stroke gradients need pixel coords over the object's local box
+        o.set('stroke', specToGradient(spec, {
+          units: 'pixels',
+          w: Math.max(1, o.width ?? 1),
+          h: Math.max(1, o.height ?? 1),
+        }));
+      } else {
+        o.set('fill', specToGradient(spec));
+      }
+      o.dirty = true;
+    };
+    objs.forEach(applyDeep);
+    canvas.requestRenderAll();
+    if (commit) this.commitActive();
+    else this.notify();
+  }
+
+  setPageGradient(spec: GradientSpec, commit = true): void {
+    const canvas = this.activeCanvas;
+    if (!canvas) return;
+    // backgrounds are not scaled by fabric, so bake in the page size
+    canvas.backgroundColor = specToGradient(spec, { units: 'pixels', w: this.docW, h: this.docH });
     canvas.requestRenderAll();
     if (commit) this.commitActive();
     else this.notify();
