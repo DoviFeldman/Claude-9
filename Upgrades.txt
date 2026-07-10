@@ -1,14 +1,17 @@
 1 upgrade it to have a mobile friendly option along with a very optional PWA(no popup)
-2 add the ability to upload your pwn fonts from google fonts very easily.
+2 add the ability to upload your own fonts from google fonts very easily.
 3 add the ability to export your whole editing file so that you could save it exactly and also share it for others to edit and stuff, 
 maybe we could just make it that it downloads all the images your useing and records the canvas size and wher each images is on the canvas 
 and how big each is and if any of them were cropped or changed color and stuff.
 
-4 when i try moving something from one canvas to another it just dissapears behind the canvas forever, canva does something similar.
+4 when i try moving something from one canvas to another it just dissapears behind the canvas forever, canva does something similar, i want it to be visible when it gets onto the next canvas
 
 5 there some snapping that i like but we could add even more a ton of snapping
 
 feel free to add more here. 
+
+we need gradiantes, we dont have any gradients we need all of those. 
+and we also need transperency gradients, we need it to be able to go from like orange to soft clear gradually, thats something we dont have now. 
 
 
 
