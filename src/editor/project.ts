@@ -155,10 +155,19 @@ export async function confirmAndImportProject(file: File): Promise<void> {
 export function openProjectDialog(): void {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = `${PROJECT_EXT},.zip`;
+  // No accept filter: pickers (especially on phones) don't recognize the
+  // custom .opencanvas extension and grey the file out when restricted.
+  // importProject validates the content and explains if it's not a project.
+  input.style.display = 'none';
+  // iOS Safari needs the input in the document, and a live reference until
+  // the change event fires, or the callback can silently never run
+  document.body.appendChild(input);
+  const cleanup = () => input.remove();
   input.onchange = () => {
     const file = input.files?.[0];
+    cleanup();
     if (file) void confirmAndImportProject(file);
   };
+  input.oncancel = cleanup;
   input.click();
 }

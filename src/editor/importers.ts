@@ -81,6 +81,17 @@ export async function insertUpload(rec: UploadRecord): Promise<void> {
   }
 }
 
+/** True if the file is a zip containing design.json — a project file that may
+ *  have been renamed by the browser or OS on download. */
+async function looksLikeProject(file: File): Promise<boolean> {
+  try {
+    const zip = await JSZip.loadAsync(file);
+    return !!zip.file('design.json');
+  } catch {
+    return false;
+  }
+}
+
 /** Entry point for drag-drop / file input / paste. Saves to uploads then inserts. */
 export async function importFiles(files: File[] | FileList): Promise<void> {
   for (const file of Array.from(files)) {
@@ -91,6 +102,11 @@ export async function importFiles(files: File[] | FileList): Promise<void> {
     }
     const kind = classifyFile(file);
     if (!kind) {
+      if (await looksLikeProject(file)) {
+        const { confirmAndImportProject } = await import('./project');
+        await confirmAndImportProject(file);
+        continue;
+      }
       toast(`"${file.name}" isn't a supported file type.`, 'error');
       continue;
     }

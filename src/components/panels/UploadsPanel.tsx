@@ -29,7 +29,6 @@ export function UploadsPanel() {
         ref={fileRef}
         type="file"
         multiple
-        accept="image/*,.svg,.pdf,.pptx,.html,.htm"
         style={{ display: 'none' }}
         onChange={(e) => {
           if (e.target.files?.length) void importFiles(e.target.files);
@@ -40,9 +39,9 @@ export function UploadsPanel() {
         <Icon name="uploads" size={18} /> Upload files
       </button>
       <div className="hint">
-        Images, SVG, PDF, PPTX and HTML. You can also drag &amp; drop files anywhere,
-        or paste an image. Uploads stay in your browser and are removed after {RETENTION_DAYS} days
-        of not being used.
+        Images, SVG, PDF, PPTX, HTML — and saved <b>.opencanvas</b> project files, which open
+        right back up for editing. You can also drag &amp; drop files anywhere, or paste an image.
+        Uploads stay in your browser and are removed after {RETENTION_DAYS} days of not being used.
       </div>
       {items.length > 0 && <div className="panel-heading">Your uploads</div>}
       <div className="uploads-grid">
