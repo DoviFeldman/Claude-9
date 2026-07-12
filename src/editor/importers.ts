@@ -92,19 +92,21 @@ async function looksLikeProject(file: File): Promise<boolean> {
   }
 }
 
-/** Entry point for drag-drop / file input / paste. Saves to uploads then inserts. */
+/** Entry point for drag-drop / file input / paste. Saves to uploads then
+ *  inserts. Project files brought in this way ADD their pages below the
+ *  current ones (the Open button is the replace-the-design path). */
 export async function importFiles(files: File[] | FileList): Promise<void> {
   for (const file of Array.from(files)) {
     if (file.name.toLowerCase().endsWith('.opencanvas')) {
-      const { confirmAndImportProject } = await import('./project');
-      await confirmAndImportProject(file);
+      const { appendProjectPages } = await import('./project');
+      await appendProjectPages(file, `"${file.name}"`);
       continue;
     }
     const kind = classifyFile(file);
     if (!kind) {
       if (await looksLikeProject(file)) {
-        const { confirmAndImportProject } = await import('./project');
-        await confirmAndImportProject(file);
+        const { appendProjectPages } = await import('./project');
+        await appendProjectPages(file, `"${file.name}"`);
         continue;
       }
       toast(`"${file.name}" isn't a supported file type.`, 'error');

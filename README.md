@@ -63,8 +63,11 @@ Open the page and start designing. Everything you make stays in **your browser**
 - **Save the whole design as a `.opencanvas` project file** (Save button or Ctrl+S): a zip
   holding the canvas size, every page, each element's exact position/size/rotation, applied
   crops and color edits, all images used, and your custom fonts
-- **Open** it later (Open button, Ctrl+O, or drop the file onto the canvas) to continue exactly
-  where you left off — or send the file to someone else so they can edit the design themselves
+- **Open** it later (Open button or Ctrl+O) to continue exactly where you left off — or send
+  the file to someone else so they can edit the design themselves
+- Or **combine projects**: upload a `.opencanvas` file through the Uploads panel (or drag &
+  drop it) and its pages are **added below your current pages** instead of replacing them —
+  content from a different canvas size is scaled to fit
 
 **Download** (top-right button, defaults to JPG, remembers your choice)
 - **JPG, PNG (optionally transparent), PDF, SVG, HTML** at 1×/2×/3×
