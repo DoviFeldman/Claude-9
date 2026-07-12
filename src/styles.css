@@ -769,15 +769,18 @@ body.eyedropping .canvas-scroll, body.eyedropping .canvas-scroll canvas { cursor
 @media (max-width: 820px) {
   .app { height: 100dvh; }
 
-  /* compact top bar that scrolls horizontally if it must */
-  .topbar { height: 52px; padding: 0 8px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  /* compact top bar: every control keeps its natural size and the whole bar
+     scrolls horizontally, so nothing can cover or hide anything */
+  .topbar { height: 52px; padding: 0 8px; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }
   .topbar::-webkit-scrollbar { display: none; }
+  .topbar > *, .topbar-left > *, .topbar-center > *, .topbar-right > * { flex: none; }
   .logo { margin-right: 0; }
   .logo-text { display: none; }
   .doc-dims { display: none; }
   .tb-label { display: none; }
   .topbar-sep { margin: 0 2px; }
-  .doc-name { min-width: 80px; width: auto; flex: 1; }
+  .topbar-center { flex: none; min-width: 0; }
+  .doc-name { width: 140px; min-width: 140px; }
   .topbar .btn-primary { height: 34px; padding: 0 12px; }
   .topbar .btn-primary span { display: none; }
 
@@ -799,11 +802,13 @@ body.eyedropping .canvas-scroll, body.eyedropping .canvas-scroll canvas { cursor
     border-radius: 20px 20px 0 0;
   }
 
-  /* floating context toolbar spans the top edge */
+  /* floating context toolbar spans the top edge; width:auto (not fit-content)
+     so the left/right offsets bound it and its contents scroll with a swipe */
   .context-toolbar {
-    top: 6px; left: 8px; right: 8px; max-width: none;
+    top: 6px; left: 8px; right: 8px; width: auto; max-width: none;
     justify-content: flex-start; justify-content: safe center;
     padding: 0 10px;
+    overscroll-behavior-x: contain;
   }
   .toolbar-hint { white-space: normal; font-size: 11.5px; line-height: 1.3; }
 
