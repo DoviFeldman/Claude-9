@@ -710,6 +710,33 @@ input, select { font: inherit; color: inherit; }
 .toast.error { background: rgba(185, 28, 48, 0.95); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
 
+/* ---------------- about dropdown (logo) ---------------- */
+.about-pop { width: 300px; }
+.about-copy {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 11px 12px; border-radius: var(--radius-lg);
+  background: var(--violet-soft); color: var(--violet-deep);
+  font-weight: 600; text-align: left;
+  box-shadow: inset 0 0 0 1px var(--violet-200);
+  transition: background var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
+}
+.about-copy:hover { background: var(--violet-100); box-shadow: inset 0 0 0 1px var(--violet); }
+.about-copy:active { transform: scale(0.98); }
+.about-copy.copied { background: #e5f8ee; color: #0e7a45; box-shadow: inset 0 0 0 1px #9adfba; }
+.about-url { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.about-copy-hint { font-size: 10.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.75; white-space: nowrap; }
+.about-title { font-weight: 700; font-size: 15px; letter-spacing: -0.2px; margin: 12px 0 4px; }
+.about-text { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; margin: 0 0 10px; }
+.about-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: var(--radius);
+  color: var(--violet-dark); font-weight: 600; font-size: 13px; text-decoration: none;
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  transition: background var(--t-fast), box-shadow var(--t-fast);
+}
+.about-link:hover { background: var(--violet-soft); box-shadow: inset 0 0 0 1px var(--violet-200); }
+
 /* ---------------- fill picker & gradient editor ---------------- */
 .fill-picker { width: 232px; }
 .fill-tabs { margin-bottom: 10px; }

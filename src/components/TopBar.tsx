@@ -60,6 +60,55 @@ function ResizePanel({ close }: { close: () => void }) {
   );
 }
 
+const SITE_URL = 'https://opencanvas-ashy.vercel.app/';
+const CODE_URL = 'https://anonymous.4open.science/r/OpenCanvas/README.md';
+
+function AboutPanel() {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(SITE_URL);
+      ok = true;
+    } catch {
+      // fallback for browsers without clipboard API access
+      const ta = document.createElement('textarea');
+      ta.value = SITE_URL;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch { /* nothing more we can do */ }
+      ta.remove();
+    }
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="about-panel">
+      <button className={`about-copy${copied ? ' copied' : ''}`} onClick={copy} title={SITE_URL}>
+        <Icon name={copied ? 'check' : 'link'} size={16} />
+        <span className="about-url">opencanvas-ashy.vercel.app</span>
+        <span className="about-copy-hint">{copied ? 'Copied!' : 'Click to copy'}</span>
+      </button>
+      <div className="about-title">OpenCanvas</div>
+      <p className="about-text">
+        A free, open-source design editor in the spirit of Canva. No accounts, no
+        tracking — everything you make stays in your browser. Self-hostable on
+        Vercel (or any static host) in a couple of clicks.
+      </p>
+      <a className="about-link" href={CODE_URL} target="_blank" rel="noreferrer">
+        <Icon name="file" size={15} />
+        View the source code
+      </a>
+    </div>
+  );
+}
+
 export function TopBar() {
   useEditor();
   const [confirmNew, setConfirmNew] = useState(false);
@@ -67,14 +116,22 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <div className="logo">
-          <div className="logo-mark">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="7" stroke="white" strokeWidth="3.4" />
-            </svg>
-          </div>
-          <span className="logo-text">OpenCanvas</span>
-        </div>
+        <Popover
+          title="About OpenCanvas — share link & source code"
+          panelClassName="about-pop"
+          button={
+            <button className="logo" aria-label="About OpenCanvas">
+              <div className="logo-mark">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="7" stroke="white" strokeWidth="3.4" />
+                </svg>
+              </div>
+              <span className="logo-text">OpenCanvas</span>
+            </button>
+          }
+        >
+          <AboutPanel />
+        </Popover>
         <div className="topbar-sep" />
         <Popover
           title="Resize the canvas"
