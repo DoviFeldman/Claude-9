@@ -141,7 +141,7 @@ function MetaRow({ close }: { close: () => void }) {
       }}
     >
       <Icon name="shield" size={15} />
-      {on ? 'Metadata: custom fields will be added' : 'Metadata & privacy…'}
+      {on ? 'Metadata: custom fields will be added' : 'Metadata…'}
     </button>
   );
 }
