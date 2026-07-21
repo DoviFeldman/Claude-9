@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { editor } from '../editor/Editor';
 import { useEditor } from '../editor/useEditor';
-import { runExport, type ExportFormat, type ExportScope } from '../editor/exporters';
+import { runExport, type ExportCompression, type ExportFormat, type ExportScope } from '../editor/exporters';
 import { Icon } from './icons';
 import { Popover } from './Popover';
 
@@ -11,14 +11,23 @@ const FORMATS: { id: ExportFormat; label: string; note: string }[] = [
   { id: 'pdf', label: 'PDF', note: 'Documents & print' },
   { id: 'svg', label: 'SVG', note: 'Scalable vector' },
   { id: 'html', label: 'HTML', note: 'Web page — text stays selectable' },
+  { id: 'dxf', label: 'DXF', note: 'CAD drawing — clean vector outlines' },
+];
+
+const COMPRESSION_CHOICES: { id: ExportCompression; label: string }[] = [
+  { id: 'original', label: 'Original quality (default)' },
+  { id: 'balanced', label: 'Balanced — smaller file' },
+  { id: 'compressed', label: 'Compressed — small file' },
+  { id: 'max', label: 'Max compression — smallest file' },
 ];
 
 export function DownloadMenu() {
   useEditor();
   const [format, setFormat] = useState<ExportFormat>(() => (localStorage.getItem('oc-format') as ExportFormat) || 'jpg');
   const [scope, setScope] = useState<ExportScope>('all');
-  const [scale, setScale] = useState(2);
+  const [scale, setScale] = useState(1);
   const [transparent, setTransparent] = useState(false);
+  const [compression, setCompression] = useState<ExportCompression>('original');
   const hasSelection = !!editor.getActiveObject();
   const busy = !!editor.busyMessage;
 
@@ -74,9 +83,26 @@ export function DownloadMenu() {
               <div className="dl-label">Size</div>
               <div className="dl-scopes">
                 {[1, 2, 3].map((s) => (
-                  <button key={s} className={`chip${scale === s ? ' active' : ''}`} onClick={() => setScale(s)}>×{s}</button>
+                  <button key={s} className={`chip${scale === s ? ' active' : ''}`} onClick={() => setScale(s)}>
+                    {s === 1 ? 'Original ×1' : `×${s}`}
+                  </button>
                 ))}
               </div>
+            </>
+          )}
+          {(format === 'jpg' || format === 'pdf') && (
+            <>
+              <div className="dl-label">Compression</div>
+              <select
+                className="dl-select"
+                value={compression}
+                onChange={(e) => setCompression(e.target.value as ExportCompression)}
+                aria-label="Compression"
+              >
+                {COMPRESSION_CHOICES.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
             </>
           )}
           {format === 'png' && (
@@ -89,7 +115,7 @@ export function DownloadMenu() {
             className="btn-primary full"
             disabled={busy}
             onClick={() => {
-              void runExport({ format, scope, scale, transparent }).then(close);
+              void runExport({ format, scope, scale, transparent, compression }).then(close);
             }}
           >
             {busy ? 'Preparing…' : `Download ${format.toUpperCase()}`}
