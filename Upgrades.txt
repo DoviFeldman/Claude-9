@@ -14,6 +14,34 @@ we need gradiantes, we dont have any gradients we need all of those.
 and we also need transperency gradients, we need it to be able to go from like orange to soft clear gradually, thats something we dont have now. 
 
 
+hi, features i want to implement into open canvas:
+
+1 can you add a simple qr code generator to the bottom of the elements tab please? And if theres nothing else on the page then make the page square and fill the whole page with the qr code.
+
+
+2 simple OCR and text extraction and editing, including changing the background color of whatever the text is on while keeping the text the way it is.
+3 separating different colored things from jpgs with a smoothing effect or border effect, similar to the changing color but being able to remove it and drag it around the canvas and use it for other things.
+
+4 being able to export things as simple DXF files, simple, and clean. 
+
+5 and compressing. ( this can be another drop down menu within the downloads drop down)
+and we go to download it make sure that it that the default option is original quality, with the other 1x 2x 3x options, im not sure whats there and how it works but its fine but make sure that the default is original quality. 
+
+make sure its all only in the browser side dont add any backend stuff just simple added features.
+and make sure its optimized for computer web but also works on the phone web version.
+and make sure everythings in the right place dont add any features to the sidebar, just put everything in their simple smart respective places.
+
+
+i added all of these!!!!! epic great !!!!! 
+awesome.
+
+
+ok so the OCR kinda sucks, also add the ability to write and view and change metadata. 
+
+
+
+
+
 
 
 
