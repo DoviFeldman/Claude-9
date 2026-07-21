@@ -106,6 +106,27 @@ const paths: Record<string, JSX.Element> = {
   save: <path d="M5 3h10.5L21 8.5V19a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM8 3v5.5h7V3M7.5 21v-7h9v7" />,
   folder: <path d="M3 7.5A2.5 2.5 0 015.5 5h3.6L11.5 7.5H18.5A2.5 2.5 0 0121 10v7a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 17V7.5z" />,
   check: <path d="M5 13l4.5 4.5L19 7" />,
+  qr: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+      <path d="M13.5 13.5h3v3h-3zM17.5 17.5h3v3h-3zM13.5 20.5h.01M20.5 13.5h.01" />
+    </>
+  ),
+  scanText: (
+    <>
+      <path d="M8 3.5H5.5A2 2 0 003.5 5.5V8M16 3.5h2.5a2 2 0 012 2V8M8 20.5H5.5a2 2 0 01-2-2V16M16 20.5h2.5a2 2 0 002-2V16" />
+      <path d="M7.5 9h9M12 9v6.5M10 15.5h4" />
+    </>
+  ),
+  scissors: (
+    <>
+      <circle cx="6.5" cy="6.5" r="2.5" />
+      <circle cx="6.5" cy="17.5" r="2.5" />
+      <path d="M8.6 8.1L20 17M8.6 15.9L20 7M13.2 11.7l.01.01" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 20, style }: { name: keyof typeof paths | string; size?: number; style?: CSSProperties }) {

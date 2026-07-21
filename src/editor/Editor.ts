@@ -7,6 +7,7 @@ import { hexWithAlpha } from './colors';
 import { saveDoc, type SavedDoc } from './db';
 import { ensureFont } from './fonts';
 import { gradientToSpec, isGradient, specToGradient, type GradientSpec } from './gradients';
+import { qrPathData } from './qr';
 import { roundedTrianglePath } from './shapes';
 
 export { ensureFont } from './fonts';
@@ -42,7 +43,8 @@ export function decorate(obj: fabric.FabricObject): void {
   // rotation snapping: magnetic near multiples of 15°, free otherwise
   obj.snapAngle = 15;
   obj.snapThreshold = 4;
-  if (obj instanceof fabric.Path) obj.perPixelTargetFind = true;
+  // QR codes select as a whole block; other paths hit-test per pixel
+  if (obj instanceof fabric.Path && (obj as any).shapeKind !== 'qr') obj.perPixelTargetFind = true;
 }
 
 export function sceneBBox(obj: fabric.FabricObject): { left: number; top: number; width: number; height: number } {
@@ -775,6 +777,42 @@ class Editor {
       }
     }
     this.placeAndSelect(obj);
+  }
+
+  /**
+   * Add a QR code encoding `text`. On an empty page the page becomes square
+   * (fresh docs only) and the QR fills it edge to edge, keeping the standard
+   * 4-module quiet zone as white page margin. Otherwise it drops in like a
+   * regular element that can be moved and resized.
+   */
+  addQRCode(text: string): void {
+    const { path, modules } = qrPathData(text);
+    const canvas = this.activeCanvas;
+    if (!canvas) return;
+    const qr = new fabric.Path(path, { fill: '#1a1a1a' });
+    (qr as any).shapeKind = 'qr';
+    const pageEmpty = canvas.getObjects().length === 0;
+    if (pageEmpty) {
+      if (this.isFresh() && this.docW !== this.docH) {
+        const side = Math.min(this.docW, this.docH);
+        this.setDocSize(side, side);
+      }
+      // scale so QR + quiet zone (4 modules each side) exactly fills the page
+      const side = Math.min(this.docW, this.docH);
+      const unit = side / (modules + 8);
+      qr.scale((unit * modules) / (qr.width || modules));
+      decorate(qr);
+      qr.setPositionByOrigin(new fabric.Point(this.docW / 2, this.docH / 2), 'center', 'center');
+      canvas.add(qr);
+      qr.setCoords();
+      canvas.setActiveObject(qr);
+      canvas.requestRenderAll();
+      this.setTool('select');
+    } else {
+      const s = this.baseSize();
+      qr.scale(s / (qr.width || modules));
+      this.placeAndSelect(qr);
+    }
   }
 
   async addText(preset: 'heading' | 'subheading' | 'body'): Promise<void> {

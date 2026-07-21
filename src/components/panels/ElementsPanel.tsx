@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { editor, type ShapeKind } from '../../editor/Editor';
+import { toast } from '../../editor/toast';
+import { Icon } from '../icons';
 
 const SHAPES: { kind: ShapeKind; label: string; svg: JSX.Element }[] = [
   { kind: 'square', label: 'Square', svg: <rect x="6" y="6" width="36" height="36" /> },
@@ -39,6 +42,42 @@ export function ElementsPanel() {
         Click a shape to add it, then use the toolbar to change its color, border,
         corner rounding, transparency and rotation.
       </div>
+      <QRSection />
     </div>
+  );
+}
+
+function QRSection() {
+  const [text, setText] = useState('');
+  const add = () => {
+    const value = text.trim();
+    if (!value) return;
+    try {
+      editor.addQRCode(value);
+      toast('QR code added');
+    } catch {
+      toast('That text is too long for a QR code — try something shorter.', 'error');
+    }
+  };
+  return (
+    <>
+      <div className="panel-heading">QR code</div>
+      <div className="qr-form">
+        <input
+          value={text}
+          placeholder="Link or text to encode…"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+          aria-label="QR code content"
+        />
+        <button className="btn-primary full" disabled={!text.trim()} onClick={add}>
+          <Icon name="qr" size={17} /> Add QR code
+        </button>
+      </div>
+      <div className="hint">
+        Adds a scannable QR code you can move, resize and recolor. On an empty
+        page it becomes a square page filled edge-to-edge with the code.
+      </div>
+    </>
   );
 }

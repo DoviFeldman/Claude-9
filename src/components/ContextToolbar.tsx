@@ -4,6 +4,9 @@ import { anyToHex } from '../editor/colors';
 import { editor, ensureFont, isTextObject } from '../editor/Editor';
 import { addGoogleFont, allFonts } from '../editor/fonts';
 import { fillToCss } from '../editor/gradients';
+import {
+  applyOCRToCanvas, recognizeImageText, separateColorFromImage, type OCRResult,
+} from '../editor/imageTools';
 import { toast } from '../editor/toast';
 import { useEditor } from '../editor/useEditor';
 import { ColorPicker } from './ColorPicker';
@@ -334,15 +337,11 @@ function ShapeControls({ obj, kind }: { obj: fabric.FabricObject; kind: SelKind 
   );
 }
 
-function ReplaceColorPanel() {
-  const [from, setFrom] = useState<string | null>(null);
-  const [to, setTo] = useState('#8b3dff');
-  const [tol, setTol] = useState(60);
-  const [busy, setBusy] = useState(false);
+/** Eyedropper: while picking, intercept the next canvas click before fabric/popover see it. */
+function usePixelPicker(onPick: (hex: string) => void): { picking: boolean; startPicking: () => void } {
   const [picking, setPicking] = useState(false);
-  useEditor();
-
-  // while picking, intercept the next canvas click before fabric/popover see it
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
   useEffect(() => {
     if (!picking) return;
     document.body.classList.add('eyedropping');
@@ -351,7 +350,7 @@ function ReplaceColorPanel() {
       if (hex) {
         e.preventDefault();
         e.stopPropagation();
-        setFrom(hex);
+        pickRef.current(hex);
       }
       setPicking(false);
     };
@@ -366,6 +365,16 @@ function ReplaceColorPanel() {
       document.removeEventListener('keydown', onKey, true);
     };
   }, [picking]);
+  return { picking, startPicking: () => setPicking(true) };
+}
+
+function ReplaceColorPanel() {
+  const [from, setFrom] = useState<string | null>(null);
+  const [to, setTo] = useState('#8b3dff');
+  const [tol, setTol] = useState(60);
+  const [busy, setBusy] = useState(false);
+  const { picking, startPicking } = usePixelPicker(setFrom);
+  useEditor();
 
   return (
     <div className="slider-panel replace-color">
@@ -375,7 +384,7 @@ function ReplaceColorPanel() {
       </div>
       <button
         className={`btn-secondary full${picking ? ' waiting' : ''}`}
-        onClick={() => setPicking(true)}
+        onClick={startPicking}
       >
         <Icon name="eyedropper" size={16} />
         {picking ? 'Click the image…' : from ? 'Pick again' : 'Pick color from image'}
@@ -407,12 +416,190 @@ function ReplaceColorPanel() {
   );
 }
 
+function OCRPanel() {
+  const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle');
+  const [progress, setProgress] = useState<{ pct: number; stage: string }>({ pct: 0, stage: 'loading' });
+  const [result, setResult] = useState<OCRResult | null>(null);
+  const [erase, setErase] = useState(true);
+  const [autoBg, setAutoBg] = useState(true);
+  const [bgColor, setBgColor] = useState('#ffffff');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+
+  const run = async () => {
+    const img = editor.getActiveObject();
+    if (!(img instanceof fabric.FabricImage)) return;
+    setPhase('running');
+    setResult(null);
+    try {
+      const res = await recognizeImageText(img, (pct, stage) => {
+        if (alive.current) setProgress({ pct, stage });
+      });
+      if (!alive.current) return;
+      setResult(res);
+      setPhase('done');
+    } catch (err) {
+      console.error(err);
+      if (alive.current) setPhase('idle');
+      toast('Text recognition failed — please try again.', 'error');
+    }
+  };
+
+  return (
+    <div className="slider-panel ocr-panel">
+      {phase !== 'done' && (
+        <>
+          <div className="hint" style={{ marginTop: 0 }}>
+            Reads the text in this image (OCR, in your browser) so you can copy it
+            or turn it into editable text — and change the color behind it.
+          </div>
+          <button className="btn-primary full" disabled={phase === 'running'} onClick={() => void run()}>
+            <Icon name="scanText" size={16} />
+            {phase === 'running'
+              ? progress.stage === 'reading'
+                ? `Reading… ${Math.round(progress.pct * 100)}%`
+                : 'Loading OCR engine…'
+              : 'Extract text'}
+          </button>
+        </>
+      )}
+      {phase === 'done' && result && (
+        result.lines.length === 0 ? (
+          <>
+            <div className="hint" style={{ marginTop: 0 }}>No readable text was found in this image.</div>
+            <button className="btn-secondary full" onClick={() => void run()}>Try again</button>
+          </>
+        ) : (
+          <>
+            <textarea className="ocr-text" readOnly rows={5} value={result.text} aria-label="Extracted text" />
+            <button
+              className="btn-secondary full"
+              onClick={() => {
+                void navigator.clipboard.writeText(result.text).then(() => {
+                  setCopied(true);
+                  setTimeout(() => alive.current && setCopied(false), 1500);
+                });
+              }}
+            >
+              {copied ? 'Copied!' : 'Copy text'}
+            </button>
+            <label className="dl-check">
+              <input type="checkbox" checked={erase} onChange={(e) => setErase(e.target.checked)} />
+              Remove the text from the image
+            </label>
+            {erase && (
+              <>
+                <div className="dl-scopes" style={{ margin: '8px 0' }}>
+                  <button className={`chip${autoBg ? ' active' : ''}`} onClick={() => setAutoBg(true)}>Match background</button>
+                  <button className={`chip${!autoBg ? ' active' : ''}`} onClick={() => setAutoBg(false)}>Pick a color</button>
+                </div>
+                {!autoBg && <ColorPicker value={bgColor} onChange={(hex) => setBgColor(hex)} />}
+              </>
+            )}
+            <button
+              className="btn-primary full"
+              disabled={busy}
+              onClick={async () => {
+                const img = editor.getActiveObject();
+                if (!(img instanceof fabric.FabricImage)) return;
+                setBusy(true);
+                await applyOCRToCanvas(img, result.lines, { erase, eraseColor: autoBg ? null : bgColor });
+                if (alive.current) setBusy(false);
+                toast('Text added — double-click any line to edit it.');
+              }}
+            >
+              {busy ? 'Working…' : 'Turn into editable text'}
+            </button>
+          </>
+        )
+      )}
+    </div>
+  );
+}
+
+function SeparatePanel() {
+  const [from, setFrom] = useState<string | null>(null);
+  const [tol, setTol] = useState(60);
+  const [smooth, setSmooth] = useState(4);
+  const [border, setBorder] = useState(0);
+  const [borderColor, setBorderColor] = useState('#ffffff');
+  const [remove, setRemove] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const { picking, startPicking } = usePixelPicker(setFrom);
+  useEditor();
+
+  return (
+    <div className="slider-panel replace-color">
+      <div className="hint" style={{ marginTop: 0 }}>
+        Pick a color to lift everything of that color out of the image as its own
+        piece — drag it anywhere and reuse it. Edges are smoothed automatically.
+      </div>
+      <button
+        className={`btn-secondary full${picking ? ' waiting' : ''}`}
+        onClick={startPicking}
+      >
+        <Icon name="eyedropper" size={16} />
+        {picking ? 'Click the image…' : from ? 'Pick again' : 'Pick color from image'}
+      </button>
+      {from && (
+        <>
+          <div className="replace-row">
+            <span className="color-chip big" style={{ background: from }} />
+            <span style={{ fontSize: 12.5 }}>will become its own piece</span>
+          </div>
+          <div className="slider-row"><span>Tolerance</span><span>{tol}</span></div>
+          <input className="slider" type="range" min={5} max={160} value={tol} onChange={(e) => setTol(+e.target.value)} />
+          <div className="slider-row"><span>Edge smoothing</span><span>{smooth}</span></div>
+          <input className="slider" type="range" min={0} max={20} value={smooth} onChange={(e) => setSmooth(+e.target.value)} />
+          <div className="slider-row"><span>Border</span><span>{border === 0 ? 'Off' : `${border}px`}</span></div>
+          <input className="slider" type="range" min={0} max={30} value={border} onChange={(e) => setBorder(+e.target.value)} />
+          {border > 0 && (
+            <>
+              <div className="slider-row"><span>Border color</span></div>
+              <ColorPicker value={borderColor} onChange={(hex) => setBorderColor(hex)} />
+            </>
+          )}
+          <label className="dl-check">
+            <input type="checkbox" checked={remove} onChange={(e) => setRemove(e.target.checked)} />
+            Remove it from the original image
+          </label>
+          <button
+            className="btn-primary full"
+            disabled={busy}
+            onClick={async () => {
+              const img = editor.getActiveObject();
+              if (!(img instanceof fabric.FabricImage)) return;
+              setBusy(true);
+              const ok = await separateColorFromImage(img, {
+                hex: from, tolerance: tol, smooth, border, borderColor, removeFromOriginal: remove,
+              });
+              setBusy(false);
+              if (ok) toast('Separated — the new piece is selected, drag it anywhere.');
+              else toast('No pixels matched that color — try a higher tolerance.', 'error');
+            }}
+          >
+            {busy ? 'Working…' : 'Separate'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ImageControls() {
   return (
     <>
       <button className="tb-btn" onClick={() => editor.beginCrop()} title="Crop the image (permanent)">
         <Icon name="crop" size={18} /><span>Crop</span>
       </button>
+      <Popover title="Extract & edit the text in this image (OCR)" button={<button className="tb-btn"><Icon name="scanText" size={18} /><span>Extract text</span></button>}>
+        <OCRPanel />
+      </Popover>
+      <Popover title="Pull everything of one color out into its own draggable piece" button={<button className="tb-btn"><Icon name="scissors" size={18} /><span>Separate color</span></button>}>
+        <SeparatePanel />
+      </Popover>
       <Popover title="Replace a color in the image" button={<button className="tb-btn"><Icon name="palette" size={18} /><span>Replace color</span></button>}>
         <ReplaceColorPanel />
       </Popover>

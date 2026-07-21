@@ -5,17 +5,28 @@
 import * as fabric from 'fabric';
 import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
+import { objectsToDXF } from './dxf';
 import { editor, EXTRA_PROPS, isTextObject, sceneBBox } from './Editor';
 import { toast } from './toast';
 
-export type ExportFormat = 'jpg' | 'png' | 'pdf' | 'svg' | 'html';
+export type ExportFormat = 'jpg' | 'png' | 'pdf' | 'svg' | 'html' | 'dxf';
 export type ExportScope = 'all' | 'current' | 'selection';
+export type ExportCompression = 'original' | 'balanced' | 'compressed' | 'max';
+
+/** JPEG encode quality per compression level (applies to JPG and PDF). */
+export const COMPRESSION_QUALITY: Record<ExportCompression, number> = {
+  original: 0.95,
+  balanced: 0.8,
+  compressed: 0.6,
+  max: 0.4,
+};
 
 export interface ExportOptions {
   format: ExportFormat;
   scope: ExportScope;
   scale: number; // raster multiplier
   transparent: boolean; // PNG only
+  compression?: ExportCompression; // JPG & PDF only; default 'original'
 }
 
 export function safeName(): string {
@@ -71,7 +82,7 @@ function pageJSONs(scope: ExportScope): string[] {
   });
 }
 
-async function rasterizeSelection(format: 'jpeg' | 'png', scale: number): Promise<string | null> {
+async function rasterizeSelection(format: 'jpeg' | 'png', scale: number, quality = 0.92): Promise<string | null> {
   const obj = editor.getActiveObject();
   if (!obj) return null;
   const png = obj.toDataURL({ format: 'png', multiplier: scale });
@@ -86,7 +97,7 @@ async function rasterizeSelection(format: 'jpeg' | 'png', scale: number): Promis
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0);
-      resolve(c.toDataURL('image/jpeg', 0.92));
+      resolve(c.toDataURL('image/jpeg', quality));
     };
     img.onerror = () => resolve(null);
     img.src = png;
@@ -114,6 +125,63 @@ function selectionSVG(): string | null {
   canvas.requestRenderAll();
   const w = Math.max(1, right - left), h = Math.max(1, bottom - top);
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w.toFixed(1)}" height="${h.toFixed(1)}" viewBox="${left.toFixed(1)} ${top.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}">\n${parts.join('\n')}\n</svg>`;
+}
+
+// ---------------------------------------------------------------- DXF export
+
+/** DXF for the current selection, with absolute coords (mirrors selectionSVG). */
+function selectionDXF(): ReturnType<typeof objectsToDXF> | null {
+  const canvas = editor.activeCanvas;
+  const active = canvas?.getActiveObject();
+  if (!canvas || !active) return null;
+  const objs = canvas.getActiveObjects();
+  canvas.discardActiveObject(); // restores absolute coordinates on children
+  const res = objectsToDXF(objs, editor.docH);
+  if (objs.length === 1) canvas.setActiveObject(objs[0]);
+  else if (objs.length > 1) {
+    const sel = new fabric.ActiveSelection(objs, { canvas });
+    canvas.setActiveObject(sel);
+  }
+  canvas.requestRenderAll();
+  return res;
+}
+
+async function exportDXFFile(scope: ExportScope): Promise<void> {
+  let skipped = 0;
+  let entities = 0;
+  const files: { name: string; blob: Blob }[] = [];
+  if (scope === 'selection') {
+    const res = selectionDXF();
+    if (!res) return;
+    skipped = res.skippedImages;
+    entities = res.entityCount;
+    files.push({ name: `${safeName()}.dxf`, blob: new Blob([res.dxf], { type: 'application/dxf' }) });
+  } else {
+    const jsons = pageJSONs(scope);
+    for (let i = 0; i < jsons.length; i++) {
+      const { canvas: sc, dispose } = await renderOffscreen(jsons[i]);
+      const res = objectsToDXF(sc.getObjects(), editor.docH);
+      dispose();
+      skipped += res.skippedImages;
+      entities += res.entityCount;
+      const suffix = jsons.length > 1 ? `-page-${i + 1}` : '';
+      files.push({ name: `${safeName()}${suffix}.dxf`, blob: new Blob([res.dxf], { type: 'application/dxf' }) });
+    }
+  }
+  if (entities === 0) {
+    toast('Nothing here can be drawn in a DXF — add shapes, lines, drawings or text.', 'error');
+    return;
+  }
+  if (files.length === 1) {
+    saveBlob(files[0].blob, files[0].name);
+  } else {
+    const zip = new JSZip();
+    files.forEach((f) => zip.file(f.name, f.blob));
+    saveBlob(await zip.generateAsync({ type: 'blob' }), `${safeName()}.zip`);
+  }
+  if (skipped > 0) {
+    toast(`${skipped} image${skipped > 1 ? 's were' : ' was'} skipped — DXF only holds vector outlines and text.`);
+  }
 }
 
 // ---------------------------------------------------------------- HTML export
@@ -184,6 +252,7 @@ async function exportHTMLFile(scope: ExportScope): Promise<void> {
 
 export async function runExport(opts: ExportOptions): Promise<void> {
   const { format, scale } = opts;
+  const quality = COMPRESSION_QUALITY[opts.compression ?? 'original'];
   let scope = opts.scope;
   if (scope === 'selection' && !editor.getActiveObject()) scope = 'current';
 
@@ -191,6 +260,10 @@ export async function runExport(opts: ExportOptions): Promise<void> {
   try {
     if (format === 'html') {
       await exportHTMLFile(scope);
+      return;
+    }
+    if (format === 'dxf') {
+      await exportDXFFile(scope);
       return;
     }
 
@@ -201,7 +274,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
         return;
       }
       if (format === 'pdf') {
-        const url = await rasterizeSelection('jpeg', scale);
+        const url = await rasterizeSelection('jpeg', scale, quality);
         const obj = editor.getActiveObject();
         if (!url || !obj) return;
         const b = sceneBBox(obj);
@@ -211,7 +284,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
         doc.save(`${safeName()}.pdf`);
         return;
       }
-      const url = await rasterizeSelection(format === 'jpg' ? 'jpeg' : 'png', scale);
+      const url = await rasterizeSelection(format === 'jpg' ? 'jpeg' : 'png', scale, quality);
       if (url) saveBlob(dataURLToBlob(url), `${safeName()}.${format}`);
       return;
     }
@@ -225,7 +298,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
       for (let i = 0; i < jsons.length; i++) {
         if (i > 0) doc.addPage([wpt, hpt], orientation);
         const { canvas: sc, dispose } = await renderOffscreen(jsons[i]);
-        const url = sc.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: Math.max(scale, 2) });
+        const url = sc.toDataURL({ format: 'jpeg', quality, multiplier: Math.max(scale, 2) });
         dispose();
         doc.addImage(url, 'JPEG', 0, 0, wpt, hpt);
       }
@@ -247,7 +320,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
         });
         const url = sc.toDataURL({
           format: format === 'jpg' ? 'jpeg' : 'png',
-          quality: 0.92,
+          quality,
           multiplier: scale,
         });
         dispose();
