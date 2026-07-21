@@ -60,8 +60,14 @@ function ResizePanel({ close }: { close: () => void }) {
   );
 }
 
-const SITE_URL = 'https://opencanvas-ashy.vercel.app/';
+const SITE_URL = 'https://opencanvasdesign.vercel.app/';
 const CODE_URL = 'https://anonymous.4open.science/r/OpenCanvas/README.md';
+
+const OTHER_TOOLS: { label: string; url: string }[] = [
+  { label: 'HTML drag and drop website builder', url: 'https://dovifeldman.github.io/Claude-8/' },
+  { label: 'No account online video editor', url: 'https://opencut.app/' },
+  { label: 'No account messaging', url: 'https://hailgallaxhar.com/' },
+];
 
 function AboutPanel() {
   const [copied, setCopied] = useState(false);
@@ -92,7 +98,7 @@ function AboutPanel() {
     <div className="about-panel">
       <button className={`about-copy${copied ? ' copied' : ''}`} onClick={copy} title={SITE_URL}>
         <Icon name={copied ? 'check' : 'link'} size={16} />
-        <span className="about-url">opencanvas-ashy.vercel.app</span>
+        <span className="about-url">opencanvasdesign.vercel.app</span>
         <span className="about-copy-hint">{copied ? 'Copied!' : 'Click to copy'}</span>
       </button>
       <div className="about-title">OpenCanvas</div>
@@ -105,6 +111,15 @@ function AboutPanel() {
         <Icon name="file" size={15} />
         View the source code
       </a>
+      <div className="about-title">Other useful no account tools</div>
+      <div className="about-tools">
+        {OTHER_TOOLS.map((t) => (
+          <a key={t.url} className="about-link" href={t.url} target="_blank" rel="noreferrer">
+            <Icon name="link" size={15} />
+            {t.label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

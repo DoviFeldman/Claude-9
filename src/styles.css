@@ -761,6 +761,7 @@ input, select { font: inherit; color: inherit; }
   transition: background var(--t-fast), box-shadow var(--t-fast);
 }
 .about-link:hover { background: var(--violet-soft); box-shadow: inset 0 0 0 1px var(--violet-200); }
+.about-tools { display: flex; flex-direction: column; gap: 6px; }
 
 /* ---------------- fill picker & gradient editor ---------------- */
 .fill-picker { width: 232px; }
