@@ -10,6 +10,7 @@ import { ContextToolbar } from './components/ContextToolbar';
 import { CanvasArea } from './components/CanvasArea';
 import { BottomBar } from './components/BottomBar';
 import { Icon } from './components/icons';
+import { MetadataModal } from './components/MetadataModal';
 
 function PdfImportModal() {
   useEditor();
@@ -83,6 +84,7 @@ export default function App() {
         </div>
       </div>
       <PdfImportModal />
+      <MetadataModal />
       <Toasts />
     </div>
   );

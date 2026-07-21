@@ -14,6 +14,7 @@
     "jspdf": "^2.5.2",
     "jszip": "^3.10.1",
     "pdfjs-dist": "^4.8.69",
+    "piexif-ts": "^2.1.0",
     "qrcode-generator": "^2.0.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

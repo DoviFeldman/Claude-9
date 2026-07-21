@@ -6,6 +6,7 @@ import * as fabric from 'fabric';
 import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { objectsToDXF } from './dxf';
+import { applyExportMeta } from './exifmeta';
 import { editor, EXTRA_PROPS, isTextObject, sceneBBox } from './Editor';
 import { toast } from './toast';
 
@@ -285,7 +286,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
         return;
       }
       const url = await rasterizeSelection(format === 'jpg' ? 'jpeg' : 'png', scale, quality);
-      if (url) saveBlob(dataURLToBlob(url), `${safeName()}.${format}`);
+      if (url) saveBlob(applyExportMeta(url, format), `${safeName()}.${format}`);
       return;
     }
 
@@ -324,7 +325,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
           multiplier: scale,
         });
         dispose();
-        files.push({ name: `${safeName()}${suffix}.${format}`, blob: dataURLToBlob(url) });
+        files.push({ name: `${safeName()}${suffix}.${format}`, blob: applyExportMeta(url, format) });
       }
     }
     if (files.length === 1) {

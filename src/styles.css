@@ -719,6 +719,70 @@ input, select { font: inherit; color: inherit; }
 .modal-option b { color: var(--ink); }
 .modal-option small { font-size: 12px; color: var(--ink-3); line-height: 1.45; }
 
+/* ---------------- metadata modal ---------------- */
+.modal-wide {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(88dvh, 760px);
+  display: flex; flex-direction: column;
+}
+.modal-wide .meta-body { overflow-y: auto; flex: 1; min-height: 0; padding: 2px; }
+.meta-tabs { display: flex; gap: 6px; margin: 2px 0 12px; }
+.modal-option.selected {
+  border-color: var(--violet);
+  background: var(--violet-soft);
+}
+.meta-file-name { font-weight: 600; font-size: 13px; margin: 10px 0 6px; overflow-wrap: anywhere; }
+.meta-grid { display: flex; flex-direction: column; gap: 4px; }
+.meta-group-head {
+  font-size: 10.5px; font-weight: 600; color: var(--ink-3);
+  margin: 12px 0 2px; letter-spacing: 0.6px; text-transform: uppercase;
+}
+.meta-group-head:first-child { margin-top: 2px; }
+.meta-group-head.fun { color: var(--violet-dark); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.meta-row {
+  display: grid; grid-template-columns: 140px 1fr auto;
+  gap: 10px; align-items: center; font-size: 13px;
+  padding: 4px 6px; border-radius: var(--radius-sm);
+}
+.meta-row:hover { background: var(--bg-hover); }
+.meta-label { color: var(--ink-3); font-size: 12px; }
+.meta-value { overflow-wrap: anywhere; }
+.meta-badge {
+  font-size: 10px; font-weight: 600; white-space: nowrap;
+  color: #b3261e; background: #fdecea;
+  border-radius: 999px; padding: 2px 8px;
+}
+.meta-badge.ok { color: var(--ink-4); background: var(--bg-hover); }
+.meta-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.meta-thumb {
+  flex: none; width: 60px; height: 60px; border-radius: var(--radius);
+  border: 2px solid var(--line); overflow: hidden; background: var(--bg-hover);
+  display: grid; place-items: center; color: var(--ink-3);
+  transition: border-color var(--t-fast), transform var(--t-fast);
+}
+.meta-thumb:hover { border-color: var(--violet-200); transform: scale(1.04); }
+.meta-thumb.active { border-color: var(--violet); }
+.meta-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.meta-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.meta-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.meta-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-3); }
+.meta-form input, .meta-form textarea {
+  height: 36px; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0 10px; outline: none; background: #fff; font: inherit; color: var(--ink);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.meta-form textarea { height: auto; padding: 8px 10px; resize: vertical; }
+.meta-form input:focus, .meta-form textarea:focus { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-soft); }
+.meta-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.dl-meta-link {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 10px; padding: 6px 0;
+  font-size: 12px; color: var(--ink-3); border-radius: var(--radius);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.dl-meta-link:hover { color: var(--violet-dark); background: var(--bg-hover); }
+.dl-meta-link.on { color: var(--violet-dark); font-weight: 600; }
+
 /* ---------------- toasts ---------------- */
 .toasts {
   position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
@@ -873,6 +937,9 @@ body.eyedropping .canvas-scroll, body.eyedropping .canvas-scroll canvas { cursor
   .zoom-slider { width: 96px; }
 
   .popover-panel { max-width: calc(100vw - 16px); max-height: min(480px, calc(100dvh - 120px)); }
+  .meta-form-row { grid-template-columns: 1fr; }
+  .meta-row { grid-template-columns: 1fr; gap: 2px; }
+  .meta-row .meta-badge { justify-self: start; }
   .toasts { bottom: calc(120px + env(safe-area-inset-bottom)); width: calc(100vw - 32px); }
   .toast { max-width: 100%; }
 }

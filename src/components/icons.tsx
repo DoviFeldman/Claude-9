@@ -127,6 +127,13 @@ const paths: Record<string, JSX.Element> = {
       <path d="M8.6 8.1L20 17M8.6 15.9L20 7M13.2 11.7l.01.01" />
     </>
   ),
+  shield: <path d="M12 3l7.5 3v5.5c0 4.4-3 8-7.5 9.5-4.5-1.5-7.5-5.1-7.5-9.5V6L12 3zM9 12l2.2 2.2L15.5 9.8" />,
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 7.5h.01" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 20, style }: { name: keyof typeof paths | string; size?: number; style?: CSSProperties }) {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { editor } from '../editor/Editor';
+import { getExportMeta, hasAnyMetaValue } from '../editor/exifmeta';
 import { useEditor } from '../editor/useEditor';
 import { runExport, type ExportCompression, type ExportFormat, type ExportScope } from '../editor/exporters';
 import { Icon } from './icons';
@@ -120,8 +121,27 @@ export function DownloadMenu() {
           >
             {busy ? 'Preparing…' : `Download ${format.toUpperCase()}`}
           </button>
+          <MetaRow close={close} />
         </div>
       )}
     </Popover>
+  );
+}
+
+function MetaRow({ close }: { close: () => void }) {
+  const s = getExportMeta();
+  const on = s.enabled && hasAnyMetaValue(s.values);
+  return (
+    <button
+      className={`dl-meta-link${on ? ' on' : ''}`}
+      onClick={() => {
+        editor.metadataModalOpen = true;
+        editor.notify();
+        close();
+      }}
+    >
+      <Icon name="shield" size={15} />
+      {on ? 'Metadata: custom fields will be added' : 'Metadata & privacy…'}
+    </button>
   );
 }

@@ -31,6 +31,10 @@ function tessdata(): Plugin {
 
 export default defineConfig({
   plugins: [react(), tessdata()],
+  resolve: {
+    // piexif-ts declares a "module" entry that isn't shipped in the package
+    alias: { 'piexif-ts': require.resolve('piexif-ts/dist/piexif.js') },
+  },
   build: { target: 'es2022', chunkSizeWarningLimit: 2500 },
   optimizeDeps: { esbuildOptions: { target: 'es2022' } },
 });

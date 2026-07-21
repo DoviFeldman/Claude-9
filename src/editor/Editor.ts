@@ -81,6 +81,7 @@ class Editor {
   crop: CropState | null = null;
 
   pendingPdf: File | null = null; // triggers the PDF import-mode dialog
+  metadataModalOpen = false; // the big metadata viewer/editor dialog
   uploadsVersion = 0;
 
   version = 0;

@@ -65,8 +65,11 @@ export const uploadsAll = () => tx<UploadRecord[]>('uploads', 'readonly', (s) =>
 export const uploadPut = (rec: UploadRecord) => tx<void>('uploads', 'readwrite', (s) => s.put(rec));
 export const uploadDelete = (id: string) => tx<void>('uploads', 'readwrite', (s) => s.delete(id));
 
+export const uploadGet = (id: string) =>
+  tx<UploadRecord | undefined>('uploads', 'readonly', (s) => s.get(id));
+
 export async function uploadTouch(id: string): Promise<void> {
-  const rec = await tx<UploadRecord | undefined>('uploads', 'readonly', (s) => s.get(id));
+  const rec = await uploadGet(id);
   if (rec) { rec.lastUsed = Date.now(); await uploadPut(rec); }
 }
 
