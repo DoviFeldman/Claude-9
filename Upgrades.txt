@@ -38,6 +38,36 @@ awesome.
 
 ok so the OCR kinda sucks, also add the ability to write and view and change metadata. 
 
+added metadata!!! 
+
+jul 29:
+
+ok so theres a bunch of problems.
+
+first of all OCR sucks.
+1 when i download an image in original 1x quality it downloads the canvas sizes quality, not the actual original images quality, especially or even if you download section 
+only.
+so if you throw up an image to edit, edit the image and then redownload it in original quality or even higher quality then it exports at extremely low quality whatever the 
+canvas size was set to.
+
+also when i upload an image and edit it i want the canvas size to be equal to the image as if im editing an image i dont care about the rest of the canvas, but its nice to keep it there cause its nice to haev a background and you could place things there but yeah i just dont want the image to be the size of the canvas i want it to be original size. 
+
+also when you drag things from one canvas to another it doesnt show up in the second canvas as your dragging it there only once you place it there.
+
+also when you push things into outside of the canvas it dissapears with no way of getting it back, maybe thats fine or maybe we can have a toggle to see everything back there too.
+i like it like the way it is but i would also like to retrieve things i dont want them gone permanently.
+
+also you can stretch pictures which is something i dont want it to be able to do, but i do want you to be able to stretch text i guess its fine the way it is you can stretch it up not out so they are the same thing but theres only one way of doing it not both ways not the intuative way, which might also be fine cause it has other uses. 
+
+
+ok so when i downloaded an SVG and also a DXF there was a super major problem where it downloaded it as text instead of the actual mapping. 
+i guess dxfs need text so that makes sense... idk... cause they are instructions so they need text. 
+ok but it should at least give me the ability to download it as lines not text, also SVGs, yeah that was a super major problem also, i want for sure with svgs that it should be the shapes even if its text not text. maybe we could have a toggle for download as text or maybe an extra settings dropdown menu or something. but the default should definitly forsure be the shapes not the text. text applies if its like a whole image with text, but even then it should be shapes not text we never want text cause then the computer or each program just applies the default font which destorys the whole thing every time so yeah never text.
+
+and the DXF also shapes we want shapes not text, maybe we could have a drop down but the default should be text.
+
+ok next major super huge problem is when i downloaded the PNG(with transperent background) and reuploaded it it was super bad crazy horrible quality!!! not the original nice quality that i made it i had the version i made in front of me which was sharp and then the downloaded and reuploaded SVG and it was super blurry and horrible!! i dont even know how that happened it was also exported at 1x which should have been exactly the quality that i was looking at. crazy! 
+
 
 
 
