@@ -68,6 +68,25 @@ and the DXF also shapes we want shapes not text, maybe we could have a drop down
 
 ok next major super huge problem is when i downloaded the PNG(with transperent background) and reuploaded it it was super bad crazy horrible quality!!! not the original nice quality that i made it i had the version i made in front of me which was sharp and then the downloaded and reuploaded SVG and it was super blurry and horrible!! i dont even know how that happened it was also exported at 1x which should have been exactly the quality that i was looking at. crazy! 
 
+and same thing for PDF!!! i just tried it now! downloaded it and reuploaded it and it was horrible super horrible quality!! and i did it 3x size when i downloaded it, bluttery messy ugly and it was the same picture! just text on a white background downloaded and reuploaded and it was horrible!!!
+
+
+and then when i did SVG it was fine but had a big random white box to the side of it that wasnt even in the canvas frame! 
+idk where that big white box came from but we have to make sure that doesnt happen.
+
+It also seems that the text downloads as text only if you do selection only, hey we should add a feature that you could just edit plain text and it will export it as a text file like google docs or docx or txt and stuff, this way you could extract it from pdfs and pptx files i could do that thats a good idea, especailly for ocr extracting text, ok lets make that a feature but it has to be worked out first cause then you cant download pictures with it and that has to be clear, and the whole text editing interface needs to be changed. 
+ok i dont know cause the DXF was also a text when i experimented and downloaded the whole page instead. idk SVG i think it fixed though it was the actual design of the text not just the text itself that actaully worked but it added that white box to the top left corner. 
+
+also i want to add the ability to change the canvas size just by clicking on a corner and dragging it. simply doesnt get in the way and doesnt confuse with other things but has to be there. (we dont want to be able to keep the ratio with this one)
+
+ohh also another ability, canva has this and i like it, the ability to select and see everything from a positions tab somewhere, we would want it in the tabs pill bar on top 
+but i guess it should apply or in the drop down there should be an option to see all the things on the whole page and selsct them so that you can edit and change the sizes of things behind things and do stuff like that. 
+
+(maybe we could also throw in a history? idk not for now, but its a cool feature, but i dont really need it and i think most people dont need it either, especially for now)
+
+also one time when i exported a selection only that i drew on top of it only exported the unedited selection, maybe we can make it allways edit the selection or have a reminder or when you press selection only or maybe a detection popup that says group everything above it in its area and download but in general i hate popups it should just do it automatically i think thats the best thing or something like that, just merge and then download, merge everything on top of the selection and then download, i like that option, thats the best. 
+
+also maybe some simple intuative keyboard shortcuts maybe like command c and v or command d to avoid the main ones to duplicate something command d works good yeah make it that but we want more like maybe command p for position and stuff. 
 
 
 
