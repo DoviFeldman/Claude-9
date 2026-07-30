@@ -94,6 +94,7 @@ also when i do borders on a rectangle (maybe it was a box before but i shaped it
 and theres no transperency option for the colors of a box only gradients so i cant make just a border shape and put it around things, we need to add trancperecny as a color.
 
 
+theres also no sizing options for like inches or whatever it is it should be editable, when you drag a corner or side it should have a small bulb next to the mouse that says the size, and in the positions tab that were gonna make as part of the updates it should also have the sizes for everything and they should be editable, just like in canva, and they should also be changeable from inches to mm to cm and include ratios height width too, thats something i want. 
 
 
 
