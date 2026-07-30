@@ -89,7 +89,9 @@ also one time when i exported a selection only that i drew on top of it only exp
 also maybe some simple intuative keyboard shortcuts maybe like command c and v or command d to avoid the main ones to duplicate something command d works good yeah make it that but we want more like maybe command p for position and stuff. 
 
 
+also when i do borders on a rectangle maybe it was a box before but i shaped it to a rectangle the borders for top/bottom and sides are totally unequal even though its supposed to be 6px. 
 
+and theres no transperency option for the colors of a box only gradients so i cant make just a border shape and put it around things, we need to add trancperecny as a color.
 
 
 
