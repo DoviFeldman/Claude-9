@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { editor } from '../editor/Editor';
 import { getExportMeta, hasAnyMetaValue } from '../editor/exifmeta';
 import { useEditor } from '../editor/useEditor';
-import { runExport, type ExportCompression, type ExportFormat, type ExportScope } from '../editor/exporters';
+import { exportSize, runExport, type ExportCompression, type ExportFormat, type ExportScope } from '../editor/exporters';
 import { Icon } from './icons';
 import { Popover } from './Popover';
 
@@ -26,7 +26,6 @@ export function DownloadMenu() {
   useEditor();
   const [format, setFormat] = useState<ExportFormat>(() => (localStorage.getItem('oc-format') as ExportFormat) || 'jpg');
   const [scope, setScope] = useState<ExportScope>('all');
-  const [scale, setScale] = useState(1);
   const [transparent, setTransparent] = useState(false);
   const [compression, setCompression] = useState<ExportCompression>('original');
   const hasSelection = !!editor.getActiveObject();
@@ -79,18 +78,6 @@ export function DownloadMenu() {
               Selection only
             </button>
           </div>
-          {(format === 'jpg' || format === 'png') && (
-            <>
-              <div className="dl-label">Size</div>
-              <div className="dl-scopes">
-                {[1, 2, 3].map((s) => (
-                  <button key={s} className={`chip${scale === s ? ' active' : ''}`} onClick={() => setScale(s)}>
-                    {s === 1 ? 'Original ×1' : `×${s}`}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
           {(format === 'jpg' || format === 'pdf') && (
             <>
               <div className="dl-label">Compression</div>
@@ -112,11 +99,12 @@ export function DownloadMenu() {
               Transparent background
             </label>
           )}
+          {(format === 'jpg' || format === 'png' || format === 'pdf') && <SizeLine format={format} scope={scope} compression={compression} />}
           <button
             className="btn-primary full"
             disabled={busy}
             onClick={() => {
-              void runExport({ format, scope, scale, transparent, compression }).then(close);
+              void runExport({ format, scope, transparent, compression }).then(close);
             }}
           >
             {busy ? 'Preparing…' : `Download ${format.toUpperCase()}`}
@@ -126,6 +114,12 @@ export function DownloadMenu() {
       )}
     </Popover>
   );
+}
+
+/** One grey line: the real pixel size you'll get (photos keep their pixels, text stays sharp). */
+function SizeLine({ format, scope, compression }: { format: 'jpg' | 'png' | 'pdf'; scope: ExportScope; compression: ExportCompression }) {
+  const s = exportSize(format, scope, compression);
+  return <div className="hint">{s.width} × {s.height} px{s.limited ? ' (size limit)' : ''}</div>;
 }
 
 function MetaRow({ close }: { close: () => void }) {

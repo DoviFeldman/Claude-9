@@ -2,22 +2,22 @@ import { useState } from 'react';
 import { editor } from '../editor/Editor';
 import { exportProject, openProjectDialog } from '../editor/project';
 import { useEditor } from '../editor/useEditor';
-import { fromPx, toPx, type Unit } from '../constants';
+import { pxToSize, sizeToPx, type SizeUnit } from '../constants';
 import { Icon } from './icons';
 import { Popover } from './Popover';
 import { DownloadMenu } from './DownloadMenu';
 
 function ResizePanel({ close }: { close: () => void }) {
-  const [unit, setUnit] = useState<Unit>('px');
-  const [w, setW] = useState(String(fromPx(editor.docW, 'px')));
-  const [h, setH] = useState(String(fromPx(editor.docH, 'px')));
+  const [unit, setUnit] = useState<SizeUnit>('px');
+  const [w, setW] = useState(String(editor.docW));
+  const [h, setH] = useState(String(editor.docH));
 
-  const switchUnit = (u: Unit) => {
-    const wPx = toPx(parseFloat(w) || 0, unit);
-    const hPx = toPx(parseFloat(h) || 0, unit);
+  const switchUnit = (u: SizeUnit) => {
+    const [wPx, hPx] = sizeToPx(parseFloat(w) || 0, parseFloat(h) || 0, unit);
+    const [nw, nh] = pxToSize(wPx, hPx, u);
     setUnit(u);
-    setW(String(fromPx(wPx, u)));
-    setH(String(fromPx(hPx, u)));
+    setW(String(nw));
+    setH(String(nh));
   };
 
   return (
@@ -34,19 +34,19 @@ function ResizePanel({ close }: { close: () => void }) {
         </label>
         <label>
           <span>Unit</span>
-          <select value={unit} onChange={(e) => switchUnit(e.target.value as Unit)}>
+          <select value={unit} onChange={(e) => switchUnit(e.target.value as SizeUnit)}>
             <option value="px">px</option>
             <option value="in">in</option>
             <option value="cm">cm</option>
             <option value="mm">mm</option>
+            <option value="ratio">ratio</option>
           </select>
         </label>
       </div>
       <button
         className="btn-primary full"
         onClick={() => {
-          const wPx = toPx(parseFloat(w) || 0, unit);
-          const hPx = toPx(parseFloat(h) || 0, unit);
+          const [wPx, hPx] = sizeToPx(parseFloat(w) || 0, parseFloat(h) || 0, unit);
           if (wPx >= 16 && hPx >= 16) {
             editor.setDocSize(wPx, hPx);
             close();

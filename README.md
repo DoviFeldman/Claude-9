@@ -8,7 +8,8 @@ Open the page and start designing. Everything you make stays in **your browser**
 ## Features
 
 **Canvas**
-- Any canvas size in **px, inches, cm or mm**, resizable at any time
+- Any canvas size in **px, inches, cm, mm or as a ratio** (e.g. 16 × 9), resizable at any time
+- **Ratio presets** (1:1, 4:5, 9:16, 16:9, 4:3, 3:2, 2:3, 3:1, 21:9, A-series) with what each is used for
 - Templates for popular formats: YouTube thumbnail, Instagram post/story, Facebook, X/Twitter,
   LinkedIn banner, Pinterest, presentations, website mockups, A4 / US Letter, business card, poster, flyer, logo
 - Multiple **pages stacked vertically** (add, duplicate, reorder, delete)
@@ -70,7 +71,11 @@ Open the page and start designing. Everything you make stays in **your browser**
   content from a different canvas size is scaled to fit
 
 **Download** (top-right button, defaults to JPG, remembers your choice)
-- **JPG, PNG (optionally transparent), PDF, SVG, HTML** at 1×/2×/3×
+- **JPG, PNG (optionally transparent), PDF, SVG, HTML**
+- **Never loses photo detail**: photos export at their own full resolution, and text, lines
+  and shapes are always rendered at least 4K-sharp — the menu shows the exact pixel size
+- Sensible size limits keep files usable (JPG/PDF ≤ 64 MP, PNG ≤ 20 MP, phones ≤ 16 MP);
+  the compression choices also shrink pixels (Balanced 12 MP, Compressed 4 MP, Max 2 MP)
 - All pages, the current page, or **just the selected element(s) / group**
 - Multi-page raster/SVG exports arrive as a zip; PDF is a single multi-page file
 - **HTML export** rasterizes graphics into a background JPG per page and keeps top-level

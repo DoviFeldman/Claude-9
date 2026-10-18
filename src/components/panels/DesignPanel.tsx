@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { TEMPLATES, fromPx, toPx, type Unit } from '../../constants';
+import { TEMPLATES, pxToSize, ratioLabel, sizeToPx, type SizeUnit } from '../../constants';
 import { editor } from '../../editor/Editor';
 import { useEditor } from '../../editor/useEditor';
 
 export function DesignPanel() {
   useEditor();
-  const [unit, setUnit] = useState<Unit>('px');
+  const [unit, setUnit] = useState<SizeUnit>('px');
   const [w, setW] = useState('1280');
   const [h, setH] = useState('720');
 
   const groups = [...new Set(TEMPLATES.map((t) => t.group))];
 
   const apply = () => {
-    const wPx = toPx(parseFloat(w) || 0, unit);
-    const hPx = toPx(parseFloat(h) || 0, unit);
+    const [wPx, hPx] = sizeToPx(parseFloat(w) || 0, parseFloat(h) || 0, unit);
     if (wPx >= 16 && hPx >= 16) editor.setDocSize(wPx, hPx);
   };
 
@@ -27,9 +26,11 @@ export function DesignPanel() {
         <select
           value={unit}
           onChange={(e) => {
-            const u = e.target.value as Unit;
-            setW(String(fromPx(toPx(parseFloat(w) || 0, unit), u)));
-            setH(String(fromPx(toPx(parseFloat(h) || 0, unit), u)));
+            const u = e.target.value as SizeUnit;
+            const [wPx, hPx] = sizeToPx(parseFloat(w) || 0, parseFloat(h) || 0, unit);
+            const [nw, nh] = pxToSize(wPx, hPx, u);
+            setW(String(nw));
+            setH(String(nh));
             setUnit(u);
           }}
         >
@@ -37,10 +38,11 @@ export function DesignPanel() {
           <option value="in">in</option>
           <option value="cm">cm</option>
           <option value="mm">mm</option>
+          <option value="ratio">ratio</option>
         </select>
       </div>
       <button className="btn-primary full" onClick={apply}>Create / resize</button>
-      <div className="hint">Current canvas: {editor.docW} × {editor.docH} px</div>
+      <div className="hint">Current canvas: {editor.docW} × {editor.docH} px · {ratioLabel(editor.docW, editor.docH)}</div>
 
       {groups.map((g) => (
         <div key={g}>
@@ -56,12 +58,12 @@ export function DesignPanel() {
                       background: t.gradient,
                       aspectRatio: `${t.w} / ${t.h}`,
                       maxHeight: 84,
-                      width: ratio > 1.2 ? 'auto' : '100%',
-                      height: ratio > 1.2 ? 84 : 'auto',
+                      width: ratio > 0.7 ? 'auto' : '100%',
+                      height: ratio > 0.7 ? 84 : 'auto',
                     }}
                   />
                   <span className="template-name">{t.name}</span>
-                  <span className="template-dims">{t.w} × {t.h} px</span>
+                  <span className="template-dims">{t.note ?? `${t.w} × ${t.h} px`}</span>
                 </button>
               );
             })}
