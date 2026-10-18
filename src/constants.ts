@@ -15,15 +15,67 @@ export function fromPx(px: number, unit: Unit): number {
   return unit === 'px' ? Math.round(v) : Math.round(v * 100) / 100;
 }
 
+// ---- ratios: type a shape (16 × 9) instead of exact pixels
+export type SizeUnit = Unit | 'ratio';
+
+/** Canvases made from a ratio get this long side. Exports stay sharp anyway:
+ *  photos keep their own pixels and text is always rendered 4K-sharp. */
+export const RATIO_LONG_SIDE = 1920;
+
+/** Width & height typed in any unit (or as a ratio) → canvas pixels. */
+export function sizeToPx(w: number, h: number, unit: SizeUnit): [number, number] {
+  if (unit !== 'ratio') return [toPx(w, unit), toPx(h, unit)];
+  if (!(w > 0 && h > 0)) return [0, 0];
+  const k = RATIO_LONG_SIDE / Math.max(w, h);
+  return [Math.round(w * k), Math.round(h * k)];
+}
+
+/** Canvas pixels → numbers to show in a unit (as a ratio: 1280×720 → 16, 9). */
+export function pxToSize(w: number, h: number, unit: SizeUnit): [number, number] {
+  return unit === 'ratio' ? ratioParts(w, h) : [fromPx(w, unit), fromPx(h, unit)];
+}
+
+/** Simplest ratio for a size: 16:9, 4:5, 7:3 … or 1:1.41 when there's no neat one. */
+function ratioParts(w: number, h: number): [number, number] {
+  if (!(w > 0 && h > 0)) return [0, 0];
+  const r = Math.max(w, h) / Math.min(w, h);
+  for (let small = 1; small <= 10; small++) {
+    const big = Math.round(r * small);
+    if (Math.abs(big / small - r) / r < 0.002) return w >= h ? [big, small] : [small, big];
+  }
+  const long = Math.round(r * 100) / 100;
+  return w >= h ? [long, 1] : [1, long];
+}
+
+export function ratioLabel(w: number, h: number): string {
+  return ratioParts(w, h).join(':');
+}
+
 export interface Template {
   name: string;
   w: number;
   h: number;
   group: string;
   gradient: string;
+  note?: string; // shown instead of the pixel size
 }
 
+const ratioTemplate = (name: string, a: number, b: number, note: string): Template => {
+  const [w, h] = sizeToPx(a, b, 'ratio');
+  return { name, w, h, note, group: 'Ratios', gradient: 'linear-gradient(135deg,#e9ecf2,#c9d0dc)' };
+};
+
 export const TEMPLATES: Template[] = [
+  ratioTemplate('1:1', 1, 1, 'Posts, profile pictures'),
+  ratioTemplate('4:5', 4, 5, 'Instagram portrait posts'),
+  ratioTemplate('9:16', 9, 16, 'Stories, Reels, TikTok, Shorts'),
+  ratioTemplate('16:9', 16, 9, 'YouTube, slides, TVs'),
+  ratioTemplate('4:3', 4, 3, 'Phone photos, iPad'),
+  ratioTemplate('3:2', 3, 2, 'Camera photos, 4×6 prints'),
+  ratioTemplate('2:3', 2, 3, 'Posters, Pinterest'),
+  ratioTemplate('3:1', 3, 1, 'X / Twitter header'),
+  ratioTemplate('21:9', 21, 9, 'Ultrawide, cinema'),
+  ratioTemplate('1:√2', 1, Math.SQRT2, 'A4 & A-series paper'),
   { name: 'YouTube Thumbnail', w: 1280, h: 720, group: 'Social media', gradient: 'linear-gradient(135deg,#ff6b6b,#ee0979)' },
   { name: 'Instagram Post', w: 1080, h: 1080, group: 'Social media', gradient: 'linear-gradient(135deg,#a18cd1,#fbc2eb)' },
   { name: 'Instagram Story', w: 1080, h: 1920, group: 'Social media', gradient: 'linear-gradient(135deg,#f093fb,#f5576c)' },

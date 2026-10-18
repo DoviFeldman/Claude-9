@@ -25,9 +25,91 @@ export const COMPRESSION_QUALITY: Record<ExportCompression, number> = {
 export interface ExportOptions {
   format: ExportFormat;
   scope: ExportScope;
-  scale: number; // raster multiplier
   transparent: boolean; // PNG only
   compression?: ExportCompression; // JPG & PDF only; default 'original'
+}
+
+// ---------------------------------------------------------------- export size
+// One rule for every raster export (JPG, PNG, PDF, HTML background):
+//  - never fewer pixels than the sharpest photo in it (photos keep their own pixels)
+//  - text, lines and shapes always come out at least 4K-sharp, whatever the canvas size
+//  - capped so files stay usable (≈ ≤10× a phone photo) and inside browser limits
+
+const MP = 1_000_000;
+const SHARP_TEXT_PIXELS = 3840 * 2160; // ~8 MP: text & lines look crisp zoomed in or printed
+const MAX_PIXELS = { jpg: 64 * MP, pdf: 64 * MP, png: 20 * MP, html: 20 * MP }; // PNG barely compresses photos
+const PHONE_MAX_PIXELS = 16 * MP; // iPhone/iPad browsers can't make bigger canvases
+const MAX_SIDE = 16_384; // browser canvas side limit
+/** "Smaller file" choices also cap pixels — fewer pixels shrink files far better than lower quality alone. */
+const COMPRESSION_MAX_PIXELS: Record<ExportCompression, number> = {
+  original: Infinity,
+  balanced: 12 * MP,
+  compressed: 4 * MP,
+  max: 2 * MP,
+};
+
+export type RasterFormat = keyof typeof MAX_PIXELS;
+
+export interface ExportSize {
+  multiplier: number;
+  width: number;
+  height: number;
+  limited: boolean; // a hard size limit (not the chosen compression) made it smaller
+}
+
+/** Highest photo pixel density, and whether any text/lines/shapes exist, in these objects. */
+function contentNeeds(objs: fabric.FabricObject[]): { photo: number; vector: boolean } {
+  let photo = 1;
+  let vector = false;
+  const walk = (list: fabric.FabricObject[]) => list.forEach((o) => {
+    if (o instanceof fabric.FabricImage) {
+      const s = o.getObjectScaling(); // includes group scaling, not screen zoom
+      photo = Math.max(photo, 1 / Math.max(1e-6, Math.min(s.x, s.y)));
+    } else if (o instanceof fabric.Group) {
+      walk(o.getObjects());
+    } else {
+      vector = true;
+    }
+  });
+  walk(objs);
+  return { photo, vector };
+}
+
+/** The objects and base size an export covers (selection falls back to the current page). */
+function exportContent(scope: ExportScope): { objects: fabric.FabricObject[]; w: number; h: number } {
+  const active = editor.getActiveObject();
+  if (scope === 'selection' && active) {
+    const b = sceneBBox(active);
+    return { objects: [active], w: Math.max(1, Math.ceil(b.width)), h: Math.max(1, Math.ceil(b.height)) };
+  }
+  const pages = scope === 'all' ? editor.pages : editor.pages.filter((p) => p.id === editor.activePageId);
+  const objects = pages.flatMap((p) => editor.getCanvas(p.id)?.getObjects() ?? []);
+  return { objects, w: editor.docW, h: editor.docH };
+}
+
+/** Exactly how many pixels an export will have. Used by the export and the Download menu. */
+export function exportSize(format: RasterFormat, scope: ExportScope, compression: ExportCompression = 'original'): ExportSize {
+  const { objects, w, h } = exportContent(scope);
+  const { photo, vector } = contentNeeds(objects);
+  // text sharpness is set by the page size, so a selection matches the full-page export
+  const textScale = vector ? Math.sqrt(SHARP_TEXT_PIXELS / (editor.docW * editor.docH)) : 1;
+  const wanted = Math.max(1, photo, textScale);
+
+  const phone = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const hardCap = Math.min(MAX_PIXELS[format], phone ? PHONE_MAX_PIXELS : Infinity);
+  const hardMax = Math.min(Math.sqrt(hardCap / (w * h)), MAX_SIDE / Math.max(w, h));
+  const fileCap = format === 'jpg' || format === 'pdf' ? COMPRESSION_MAX_PIXELS[compression] : Infinity;
+  const multiplier = Math.min(wanted, hardMax, Math.sqrt(fileCap / (w * h)));
+  return {
+    multiplier,
+    width: Math.max(1, Math.floor(w * multiplier + 0.01)), // canvases truncate, so the menu matches the file
+    height: Math.max(1, Math.floor(h * multiplier + 0.01)),
+    limited: wanted > hardMax && hardMax <= Math.sqrt(fileCap / (w * h)),
+  };
+}
+
+function sizeLimitNote(s: ExportSize): void {
+  if (s.limited) toast(`Saved at ${s.width} × ${s.height} px — the size limit for this file type on this device.`);
 }
 
 export function safeName(): string {
@@ -86,23 +168,16 @@ function pageJSONs(scope: ExportScope): string[] {
 async function rasterizeSelection(format: 'jpeg' | 'png', scale: number, quality = 0.92): Promise<string | null> {
   const obj = editor.getActiveObject();
   if (!obj) return null;
-  const png = obj.toDataURL({ format: 'png', multiplier: scale });
-  if (format === 'png') return png;
+  const src = obj.toCanvasElement({ multiplier: scale });
+  if (format === 'png') return src.toDataURL('image/png');
   // composite over white for JPG
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = img.width; c.height = img.height;
-      const ctx = c.getContext('2d')!;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, c.width, c.height);
-      ctx.drawImage(img, 0, 0);
-      resolve(c.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = () => resolve(null);
-    img.src = png;
-  });
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(src, 0, 0);
+  return c.toDataURL('image/jpeg', quality);
 }
 
 function selectionSVG(): string | null {
@@ -225,7 +300,9 @@ function textObjectToHTML(o: Record<string, any>): string {
 }
 
 async function exportHTMLFile(scope: ExportScope): Promise<void> {
-  const jsons = pageJSONs(scope === 'selection' ? 'current' : scope);
+  const pageScope = scope === 'selection' ? 'current' : scope;
+  const jsons = pageJSONs(pageScope);
+  const multiplier = exportSize('html', pageScope).multiplier;
   const fonts = new Set<string>();
   const pagesHtml: string[] = [];
   for (const json of jsons) {
@@ -236,7 +313,7 @@ async function exportHTMLFile(scope: ExportScope): Promise<void> {
     );
     textObjs.forEach((o) => o.fontFamily && fonts.add(o.fontFamily));
     const { canvas: sc, dispose } = await renderOffscreen(json, { omitTopLevelText: true });
-    const bg = sc.toDataURL({ format: 'jpeg', quality: 0.9, multiplier: 1 });
+    const bg = sc.toDataURL({ format: 'jpeg', quality: 0.9, multiplier });
     dispose();
     pagesHtml.push(
       `  <div class="page" style="position:relative;width:${editor.docW}px;height:${editor.docH}px;background-image:url(${bg});background-size:100% 100%;overflow:hidden;margin:24px auto;box-shadow:0 2px 12px rgba(0,0,0,.15)">\n${textObjs.map(textObjectToHTML).join('\n')}\n  </div>`,
@@ -252,10 +329,14 @@ async function exportHTMLFile(scope: ExportScope): Promise<void> {
 // ---------------------------------------------------------------- main entry
 
 export async function runExport(opts: ExportOptions): Promise<void> {
-  const { format, scale } = opts;
-  const quality = COMPRESSION_QUALITY[opts.compression ?? 'original'];
+  const { format } = opts;
+  const compression = opts.compression ?? 'original';
+  const quality = COMPRESSION_QUALITY[compression];
   let scope = opts.scope;
   if (scope === 'selection' && !editor.getActiveObject()) scope = 'current';
+  const size = format === 'jpg' || format === 'png' || format === 'pdf' ? exportSize(format, scope, compression) : null;
+  const scale = size?.multiplier ?? 1;
+  if (size) sizeLimitNote(size);
 
   editor.setBusy('Preparing your download…');
   try {
@@ -299,7 +380,7 @@ export async function runExport(opts: ExportOptions): Promise<void> {
       for (let i = 0; i < jsons.length; i++) {
         if (i > 0) doc.addPage([wpt, hpt], orientation);
         const { canvas: sc, dispose } = await renderOffscreen(jsons[i]);
-        const url = sc.toDataURL({ format: 'jpeg', quality, multiplier: Math.max(scale, 2) });
+        const url = sc.toDataURL({ format: 'jpeg', quality, multiplier: scale });
         dispose();
         doc.addImage(url, 'JPEG', 0, 0, wpt, hpt);
       }
